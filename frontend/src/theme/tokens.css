@@ -1,0 +1,98 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap");
+
+/* Brand tokens — Marketeers palette. Light mode only. */
+:root {
+  --brand: #002d62;
+  --brand-soft: #001433;
+  --brand-softer: #0a3d7a;
+  --brand-line: #1a3a66;
+
+  --sidebar-blue: #66b3ff;
+  --sidebar-bg: #003060;
+  --sidebar-hover: rgba(255, 255, 255, 0.08);
+  --sidebar-active: rgba(255, 255, 255, 0.14);
+  --sidebar-line: rgba(255, 255, 255, 0.16);
+  --sidebar-text: #f0f4fa;
+  --sidebar-text-muted: rgba(240, 244, 250, 0.65);
+
+  --primary: #002d62;
+  --primary-hover: #001433;
+  --accent: #c41230;
+  --accent-pale: #f8dce1;
+
+  --danger: #9e1028;
+  --neg-fg: #9e1028;
+  --neg-bg: #f8dce1;
+  --pos-fg: #1a6b4a;
+  --pos-bg: #e3efe7;
+
+  --warn: #c9a227;
+  --warn-deep: #8f7318;
+  --warn-fg: #8f7318;
+  --warn-pale: #f5edd0;
+  --edit-bg: #f6f8fb;
+  --edit-bg-hover: #eef1f6;
+  --edit-border: #c8d0dc;
+  --changed-bg: #fffbeb;
+  --changed-bg-hover: #fef3c7;
+  --changed-accent: #d4a017;
+  --changed-input-bg: #ffffff;
+  --group-bar-bg: #ffffff;
+  --group-bar-hover: #f8fafc;
+  --group-bar-rule: #e2e8f0;
+  --highlight-bg: #f5edd0;
+
+  --bg: #f3f5f8;
+  --surface: #ffffff;
+  --border: #d8dee8;
+  --text: #0d1b33;
+  --text-muted: #5c6b80;
+
+  /* Display face for headings — body copy stays on Inter. */
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+
+  --sidebar-width: 240px;
+  --topbar-height: 56px;
+  --radius: 8px;
+  --space: 8px;
+
+  --color-threshold: 3.5; /* percent relative to base; applied in JS via shareColor.ts */
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+}
+
+::selection {
+  background: var(--warn-pale);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}

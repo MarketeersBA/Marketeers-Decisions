@@ -1,0 +1,2 @@
+# Include the locally built SPA even though api/spa_dist/ is gitignored.
+!api/spa_dist/

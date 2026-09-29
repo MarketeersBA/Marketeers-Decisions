@@ -1,0 +1,28 @@
+**/__pycache__
+*.py[cod]
+/__pycache__
+/decompiled
+ManageScenariosForm.cs
+/backend/studies
+/backend/data/app.db
+/backend/data/cache
+/backend/api/spa_dist
+/backend/build
+/backend/*.egg-info
+/backend/dist
+/.idea
+/.claude
+
+# Env & local secrets (keep *.example)
+.env
+**/.env
+!.env.example
+!**/.env.example
+
+# Local tooling / runtime
+.venv/
+**/.venv/
+.pytest_cache/
+**/.pytest_cache/
+.fastapicloud/
+**/.fastapicloud/

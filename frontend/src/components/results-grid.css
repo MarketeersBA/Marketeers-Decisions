@@ -1,0 +1,659 @@
+.grid-scroll {
+  flex: 1;
+  overflow: auto;
+  background: var(--surface);
+}
+
+.grid-scroll-fixed {
+  flex: 0 0 auto;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.results-grid {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12.8px;
+}
+
+.results-grid th,
+.results-grid td {
+  padding: 7px 10px;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.results-grid th {
+  position: sticky;
+  top: 0;
+  background: #fafbfc;
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border);
+  z-index: 1;
+  white-space: normal;
+  text-align: center;
+  vertical-align: middle;
+  line-height: 1.25;
+  max-width: 5.5rem;
+  user-select: none;
+}
+
+.results-grid th.col-draggable {
+  cursor: grab;
+}
+
+.results-grid th.col-draggable:active,
+.results-grid th.col-dragging {
+  cursor: grabbing;
+}
+
+.results-grid th.col-dragging {
+  opacity: 0.55;
+}
+
+.results-grid th.col-drop-target {
+  box-shadow: inset 3px 0 0 var(--brand);
+  background: #eef3f9;
+}
+
+.results-grid td {
+  border-bottom: 1px solid #eef0f3;
+}
+
+.results-grid th:first-child,
+.results-grid td:first-child {
+  text-align: left;
+  max-width: none;
+  vertical-align: middle;
+}
+
+.results-grid th:first-child,
+.results-grid td:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--surface);
+}
+.results-grid th:first-child {
+  background: #fafbfc;
+  z-index: 3;
+}
+.results-grid td:first-child {
+  z-index: 2;
+  box-shadow: 4px 0 8px -6px rgba(0, 0, 0, 0.12);
+}
+
+/* Value-changeable columns pinned to the right */
+.results-grid th.sticky-right,
+.results-grid td.sticky-right {
+  position: sticky;
+  background: var(--surface);
+}
+.results-grid th.sticky-right {
+  background: #f3f5f8;
+  z-index: 3;
+}
+.results-grid td.sticky-right {
+  z-index: 2;
+}
+.results-grid th.sticky-right.editable-header {
+  background: var(--edit-bg) !important;
+}
+.results-grid td.sticky-right.editable {
+  background: var(--edit-bg);
+}
+.results-grid th.sticky-right-edge,
+.results-grid td.sticky-right-edge {
+  box-shadow: -6px 0 8px -6px rgba(0, 0, 0, 0.14);
+}
+
+.results-grid .product-name-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+}
+
+.results-grid .product-selected {
+  flex-shrink: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.results-grid .product-name {
+  font-weight: 500;
+}
+
+.results-grid td.pos,
+.results-grid td.neg {
+  /* Legacy: full-cell tint kept for non-runner grids only */
+  background: inherit;
+  color: inherit;
+  font-weight: inherit;
+}
+
+.results-grid .pair-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  width: 100%;
+  white-space: nowrap;
+}
+
+.results-grid .pair-from {
+  color: var(--text-muted);
+}
+
+.results-grid .pair-arrow {
+  color: var(--text-muted);
+  font-size: 11px;
+  opacity: 0.75;
+  flex-shrink: 0;
+}
+
+.results-grid .pair-to {
+  font-weight: 500;
+}
+
+/* Threshold-based metric coloring — full cell background */
+.results-grid td.metric-pos {
+  background: var(--pos-bg);
+  color: var(--pos-fg);
+  font-weight: 600;
+}
+
+.results-grid td.metric-neg {
+  background: var(--neg-bg);
+  color: var(--neg-fg);
+  font-weight: 600;
+}
+
+.results-grid td.metric-pos .num,
+.results-grid td.metric-neg .num {
+  color: inherit;
+  font-weight: inherit;
+}
+
+.results-grid .pair-cell .delta {
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.results-grid .pair-cell .delta:not(.metric-pos):not(.metric-neg) {
+  color: var(--text-muted);
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.results-grid td.pair-col.editable {
+  padding-left: 8px;
+  padding-right: 6px;
+}
+
+.results-grid .pair-cell .cell-input {
+  width: auto;
+  min-width: 56px;
+  flex: 0 0 auto;
+}
+
+.results-grid td.base-value .num {
+  color: var(--text-muted);
+}
+
+.results-grid tr.excluded {
+  opacity: 0.45;
+}
+
+.editable-header {
+  background: var(--edit-bg) !important;
+}
+
+/* Grouped rows — section headers between brand blocks */
+.group-header {
+  background: var(--group-bar-bg) !important;
+  font-weight: 600;
+  border-bottom: none;
+}
+.group-header td {
+  padding: 8px 10px;
+  border-top: 1px solid var(--group-bar-rule);
+  border-bottom: 1px solid #eef0f3;
+  background: var(--group-bar-bg);
+  vertical-align: middle;
+}
+.group-header td:first-child {
+  border-left: 3px solid var(--brand);
+  padding-left: 12px;
+}
+.group-header td:first-child,
+.group-header td.sticky-right {
+  background: var(--group-bar-bg);
+  z-index: 1;
+}
+.group-header .group-name {
+  color: var(--brand);
+  font-size: 12.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: 0.01em;
+}
+.group-header .group-label {
+  flex-shrink: 0;
+}
+/* Fixed-width slot so brand names line up whether or not + is shown */
+.group-add-sku-slot {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.group-add-sku-root {
+  position: relative;
+  display: inline-flex;
+}
+.group-add-sku {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  text-align: center;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.group-add-sku:hover {
+  color: var(--brand);
+  border-color: var(--brand);
+}
+.group-add-sku:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px rgba(16, 26, 46, 0.08);
+}
+.group-add-sku-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 200px;
+  max-width: min(320px, 70vw);
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(16, 26, 46, 0.12);
+}
+.group-add-sku-item {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  margin: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 400;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: normal;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.group-add-sku-item:hover,
+.group-add-sku-item:focus {
+  outline: none;
+  background: #f3f5f8;
+  color: var(--text);
+}
+.group-header .group-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: var(--edit-bg);
+  color: var(--text-muted);
+  font-size: 10px;
+  flex-shrink: 0;
+}
+.group-header:hover,
+.group-header:hover td,
+.group-header:hover td:first-child,
+.group-header:hover td.sticky-right {
+  background: var(--group-bar-hover) !important;
+}
+.results-grid.grouped-view tr:not(.group-header) td:first-child {
+  padding-left: 32px;
+}
+.group-placeholder {
+  font-style: italic;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.group-placeholder-row td {
+  border-bottom: 1px solid #eef0f3;
+}
+
+.results-grid tbody tr:hover {
+  background: #fafbfc;
+}
+.results-grid tbody tr:hover td:first-child {
+  background: #fafbfc;
+}
+.results-grid tbody tr:hover td.sticky-right:not(.editable) {
+  background: #fafbfc;
+}
+.results-grid tbody tr:hover td.sticky-right.editable {
+  background: var(--edit-bg-hover);
+}
+.results-grid tbody tr:hover td.metric-pos {
+  background: var(--pos-bg);
+}
+.results-grid tbody tr:hover td.metric-neg {
+  background: var(--neg-bg);
+}
+
+.results-grid td.editable {
+  background: var(--edit-bg);
+  padding: 2px 4px;
+}
+
+.results-grid td.editable:focus-within {
+  background: var(--edit-bg-hover);
+  box-shadow: inset 0 0 0 2px rgba(0, 45, 98, 0.08);
+}
+
+.cell-input {
+  width: 100%;
+  min-width: 62px;
+  border: 1px solid transparent;
+  background: transparent;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.cell-input:focus {
+  outline: none;
+}
+
+.cell-input.cell-select {
+  text-align: left;
+  cursor: pointer;
+  padding-right: 18px;
+}
+
+/* ---------- Runner SKU grid — mockup-aligned styling ---------- */
+.runner-sku-grid .grid-table-body {
+  padding: 0 22px;
+}
+
+.runner-sku-grid .grid-scroll-fixed {
+  padding: 0;
+}
+
+.runner-sku-grid .results-grid {
+  font-size: 12.5px;
+}
+
+.runner-sku-grid .results-grid th,
+.runner-sku-grid .results-grid td {
+  padding: 11px 16px;
+}
+
+.runner-sku-grid .results-grid th {
+  background: var(--surface);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: normal;
+  text-align: center;
+  vertical-align: middle;
+  line-height: 1.25;
+  max-width: 5.5rem;
+}
+
+.runner-sku-grid .results-grid th:first-child {
+  background: var(--surface);
+  text-align: left;
+  max-width: none;
+}
+
+.runner-sku-grid .results-grid td {
+  border-bottom: 1px solid #e5e7eb;
+  color: var(--text);
+  background: var(--surface);
+}
+
+.runner-sku-grid .results-grid td:first-child {
+  box-shadow: none;
+}
+
+.runner-sku-grid .results-grid th.sticky-right {
+  background: var(--surface);
+}
+
+.runner-sku-grid .results-grid th.sticky-right-edge,
+.runner-sku-grid .results-grid td.sticky-right-edge {
+  box-shadow: none;
+}
+
+.runner-sku-grid .results-grid td.sticky-right {
+  background: var(--surface);
+}
+
+.runner-sku-grid .results-grid .product-name {
+  font-weight: 400;
+}
+
+.runner-sku-grid .results-grid .product-selected {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--brand);
+}
+
+/* Runner group bar — light section divider, not a heavy gray band */
+.runner-sku-grid tbody tr:first-child.group-header td {
+  border-top: none;
+}
+
+.runner-sku-grid .group-header td {
+  background: var(--group-bar-bg) !important;
+  color: var(--text);
+  font-weight: 500;
+  font-size: 12px;
+  padding: 7px 12px;
+  border-top: 1px solid var(--group-bar-rule);
+  border-bottom: 1px solid #eef0f3;
+}
+
+.runner-sku-grid .group-header td:first-child {
+  border-left: 3px solid var(--brand);
+  padding-left: 10px;
+}
+
+.runner-sku-grid .group-header td:first-child,
+.runner-sku-grid .group-header td.sticky-right {
+  background: var(--group-bar-bg) !important;
+}
+
+.runner-sku-grid .group-header .group-name {
+  color: var(--brand);
+  font-size: 12.5px;
+  font-weight: 600;
+  gap: 8px;
+}
+
+.runner-sku-grid .group-header .group-metric {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.runner-sku-grid .group-header td:not(:first-child):not(.metric-pos):not(.metric-neg) {
+  color: var(--text-muted);
+}
+
+.runner-sku-grid .group-add-sku {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: var(--edit-bg);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.runner-sku-grid .group-add-sku:hover {
+  background: var(--edit-bg-hover);
+  color: var(--brand);
+}
+
+.runner-sku-grid .group-add-sku-item:hover,
+.runner-sku-grid .group-add-sku-item:focus {
+  background: #eef1f5;
+}
+
+.runner-sku-grid .group-header:hover,
+.runner-sku-grid .group-header:hover td,
+.runner-sku-grid .group-header:hover td:first-child,
+.runner-sku-grid .group-header:hover td.sticky-right {
+  background: var(--group-bar-hover) !important;
+}
+
+.runner-sku-grid .results-grid.grouped-view tr:not(.group-header) td:first-child {
+  padding-left: 16px;
+}
+
+.runner-sku-grid .results-grid tbody tr:hover {
+  background: #fafbfc;
+}
+
+.runner-sku-grid .results-grid tbody tr:hover td:not(.editable):not(.metric-pos):not(.metric-neg),
+.runner-sku-grid .results-grid tbody tr:hover td:first-child,
+.runner-sku-grid .results-grid tbody tr:hover td.sticky-right {
+  background: #fafbfc;
+}
+
+.runner-sku-grid .results-grid tbody tr:hover td.metric-pos {
+  background: var(--pos-bg);
+}
+
+.runner-sku-grid .results-grid tbody tr:hover td.metric-neg {
+  background: var(--neg-bg);
+}
+
+/* Editable input columns — neutral band; yellow reserved for changed cells */
+.runner-sku-grid .editable-header {
+  background: var(--edit-bg) !important;
+  color: var(--text-muted);
+}
+
+.runner-sku-grid .results-grid td.editable {
+  background: var(--edit-bg);
+  padding: 6px 8px;
+}
+
+.runner-sku-grid .results-grid td.editable:focus-within {
+  background: var(--edit-bg-hover);
+  box-shadow: inset 0 0 0 2px rgba(0, 45, 98, 0.08);
+}
+
+.runner-sku-grid .results-grid tbody tr:hover td.editable {
+  background: var(--edit-bg-hover);
+}
+
+.runner-sku-grid .cell-input {
+  min-width: 64px;
+  max-width: 88px;
+  margin-left: 0;
+  display: block;
+  border: 1px solid var(--edit-border);
+  background: #fff;
+  border-radius: 5px;
+  padding: 5px 8px;
+  text-align: right;
+  color: var(--text);
+}
+
+.runner-sku-grid .pair-cell .cell-input {
+  margin-left: 0;
+}
+
+.runner-sku-grid .cell-input:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px rgba(16, 26, 46, 0.08);
+}
+
+/* New X differs from Base X — subtle tint + left accent */
+.runner-sku-grid .results-grid td.editable.cell-changed {
+  background: var(--changed-bg);
+  box-shadow: inset 3px 0 0 var(--changed-accent);
+}
+
+.runner-sku-grid .results-grid tbody tr:hover td.editable.cell-changed {
+  background: var(--changed-bg-hover);
+}
+
+.runner-sku-grid .results-grid td.editable.cell-changed:focus-within {
+  background: var(--changed-bg-hover);
+  box-shadow:
+    inset 3px 0 0 var(--changed-accent),
+    inset 0 0 0 2px rgba(0, 45, 98, 0.08);
+}
+
+.runner-sku-grid .results-grid td.editable.cell-changed .cell-input {
+  border-color: var(--warn);
+  background: var(--changed-input-bg);
+}
+
+.runner-sku-grid .results-grid td.editable.cell-changed:focus-within .cell-input {
+  border-color: var(--warn-deep);
+  box-shadow: 0 0 0 2px rgba(201, 162, 39, 0.18);
+}
+
+/* Share / index metrics — cell background tint */
+.runner-sku-grid .results-grid td.metric-pos {
+  background: var(--pos-bg);
+  color: var(--pos-fg);
+  font-weight: 600;
+}
+
+.runner-sku-grid .results-grid td.metric-neg {
+  background: var(--neg-bg);
+  color: var(--neg-fg);
+  font-weight: 600;
+}
+
+.runner-sku-grid .results-grid .pair-cell .delta:not(.metric-pos):not(.metric-neg) {
+  color: var(--text-muted);
+  font-weight: 500;
+}

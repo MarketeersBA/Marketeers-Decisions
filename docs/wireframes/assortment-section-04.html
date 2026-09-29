@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wireframe — Assortment (Section 04)</title>
+  <style>
+    :root {
+      --ink: #1a1a1a;
+      --muted: #666;
+      --line: #bbb;
+      --line-soft: #ddd;
+      --fill: #f2f2f2;
+      --fill-soft: #fafafa;
+      --wire: #333;
+      --note: #555;
+      --page: #e8e8e8;
+      --share: #4a7fb8;
+      --share-first: #1e4d7a;
+      --wd: #c8c8c8;
+      --psr: #c0392b;
+      --push: #2d8a4e;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      font-size: 13px;
+      color: var(--ink);
+      background: var(--page);
+      line-height: 1.4;
+    }
+
+    .page {
+      max-width: 1100px;
+      margin: 24px auto 48px;
+      padding: 0 16px;
+    }
+
+    .doc-header {
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 2px solid var(--wire);
+    }
+    .doc-header h1 {
+      margin: 0 0 6px;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .doc-header p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 72ch;
+    }
+    .doc-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .doc-meta strong { color: var(--ink); }
+
+    .app {
+      display: grid;
+      grid-template-columns: 56px 1fr;
+      border: 2px solid var(--wire);
+      background: #fff;
+      min-height: 720px;
+    }
+
+    .rail {
+      border-right: 2px solid var(--wire);
+      background: var(--fill);
+      padding: 12px 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: center;
+    }
+    .rail-item {
+      width: 40px;
+      height: 40px;
+      border: 1.5px solid var(--line);
+      background: #fff;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: var(--muted);
+      line-height: 1.1;
+    }
+    .rail-item.active {
+      border-color: var(--wire);
+      border-width: 2px;
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    .main { min-width: 0; display: flex; flex-direction: column; }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 18px;
+      border-bottom: 1.5px solid var(--line);
+    }
+    .crumb {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    .page-title {
+      margin: 2px 0 0;
+      font-size: 20px;
+      font-weight: 700;
+    }
+    .filters {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .filter {
+      border: 1.5px dashed var(--line);
+      padding: 6px 12px;
+      color: var(--muted);
+      font-size: 12px;
+      background: var(--fill-soft);
+    }
+
+    .content {
+      padding: 16px 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .block {
+      border: 1.5px solid var(--wire);
+      background: #fff;
+      position: relative;
+    }
+    .block-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .block-head h2 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .block-head p {
+      margin: 4px 0 0;
+      font-size: 12px;
+      color: var(--muted);
+      max-width: 58ch;
+    }
+
+    .anno {
+      position: absolute;
+      top: -10px;
+      left: 12px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--wire);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1;
+    }
+
+    .btn {
+      border: 1.5px solid var(--wire);
+      background: var(--fill);
+      padding: 7px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .btn.primary {
+      background: var(--wire);
+      color: #fff;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 14px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line-soft);
+      align-items: flex-end;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .field label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      font-weight: 650;
+    }
+    .field .fixed {
+      border: 1.5px solid var(--line);
+      padding: 6px 10px;
+      font-size: 12px;
+      background: var(--fill);
+      font-weight: 650;
+      color: var(--ink);
+    }
+    .dropdown {
+      border: 1.5px dashed var(--line);
+      padding: 6px 28px 6px 10px;
+      min-width: 140px;
+      color: var(--muted);
+      background: var(--fill-soft);
+      position: relative;
+    }
+    .dropdown::after {
+      content: "▾";
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 10px;
+    }
+
+    .algo-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line-soft);
+      background: var(--fill-soft);
+      font-size: 12px;
+      color: var(--note);
+    }
+    .algo-strip strong { color: var(--ink); }
+    .algo-step {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--line);
+      padding: 4px 8px;
+      background: #fff;
+    }
+    .algo-step .num {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--wire);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .algo-step.highlight {
+      border-color: var(--share-first);
+      border-width: 2px;
+    }
+    .algo-step.highlight .num { background: var(--share-first); }
+
+    .lists {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .list-panel {
+      border-right: 1px solid var(--line-soft);
+      min-height: 120px;
+    }
+    .list-panel:last-child { border-right: none; }
+    .list-head {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--line-soft);
+      background: var(--fill-soft);
+      font-weight: 650;
+      font-size: 12px;
+    }
+    .count {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0 7px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .list-body { padding: 6px 0; }
+    .sku-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 12px;
+      font-size: 12px;
+    }
+    .sku-row .step {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 1.5px solid var(--line);
+      font-size: 10px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--muted);
+    }
+    .sku-row.introduced .step {
+      background: var(--share-first);
+      border-color: var(--share-first);
+      color: #fff;
+    }
+    .sku-row .jump {
+      margin-left: auto;
+      font-size: 11px;
+      font-weight: 650;
+      color: var(--share-first);
+    }
+    .sku-row.muted { color: var(--muted); }
+
+    .chart {
+      padding: 14px;
+    }
+    .chart-title {
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+      margin: 0 0 2px;
+    }
+    .chart-subtitle {
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      margin: 0 0 12px;
+    }
+    .chart-frame {
+      border: 1.5px dashed var(--line);
+      height: 300px;
+      position: relative;
+      overflow: hidden;
+      background: #fff;
+    }
+    .chart-y-left {
+      position: absolute;
+      left: 6px;
+      top: 24px;
+      bottom: 52px;
+      width: 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      font-size: 9px;
+      color: var(--muted);
+      text-align: right;
+    }
+    .chart-y-right {
+      position: absolute;
+      right: 6px;
+      top: 24px;
+      bottom: 52px;
+      width: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      font-size: 9px;
+      color: var(--psr);
+      text-align: left;
+    }
+    .chart-y-label {
+      position: absolute;
+      left: 2px;
+      top: 50%;
+      transform: rotate(-90deg) translateX(-50%);
+      transform-origin: left center;
+      font-size: 9px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .chart-y-label.right {
+      left: auto;
+      right: 2px;
+      color: var(--psr);
+    }
+    .chart-svg-wrap {
+      position: absolute;
+      left: 36px;
+      right: 32px;
+      top: 20px;
+      bottom: 48px;
+    }
+    .chart-svg {
+      width: 100%;
+      height: 100%;
+    }
+    .chart-x {
+      position: absolute;
+      left: 36px;
+      right: 32px;
+      bottom: 8px;
+      display: flex;
+      justify-content: space-around;
+      font-size: 8px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .chart-x span {
+      width: 18%;
+      line-height: 1.2;
+    }
+    .chart-legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 10px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .chart-legend i {
+      display: inline-block;
+      width: 14px;
+      height: 10px;
+      margin-right: 4px;
+      vertical-align: middle;
+      border: 1px solid var(--line);
+    }
+    .chart-legend .wd i { background: var(--wd); }
+    .chart-legend .share i { background: var(--share); }
+    .chart-legend .share-first i { background: var(--share-first); }
+    .chart-legend .psr i {
+      width: 16px;
+      height: 0;
+      border: none;
+      border-top: 2.5px solid var(--psr);
+      background: none;
+    }
+    .chart-legend .push i {
+      width: 0;
+      height: 0;
+      border: none;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-bottom: 10px solid var(--push);
+      background: none;
+    }
+
+    .callout-box {
+      position: absolute;
+      border: 1.5px solid var(--wire);
+      background: #fff;
+      padding: 6px 8px;
+      font-size: 10px;
+      max-width: 140px;
+      line-height: 1.35;
+      box-shadow: 1px 2px 4px rgba(0,0,0,0.08);
+    }
+    .callout-box strong { display: block; margin-bottom: 2px; }
+
+    table.matrix {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    table.matrix th,
+    table.matrix td {
+      border-bottom: 1px solid var(--line-soft);
+      padding: 9px 12px;
+      text-align: left;
+      vertical-align: middle;
+    }
+    table.matrix th {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      font-weight: 650;
+    }
+    .cell {
+      display: inline-block;
+      min-width: 64px;
+      padding: 3px 8px;
+      border: 1.5px solid var(--line);
+      font-size: 11px;
+      font-weight: 650;
+      text-align: center;
+    }
+    .cell.keep { background: #eaeaea; }
+    .cell.watch { background: #fff; border-style: dashed; }
+    .cell.push { background: #e8f5ec; border-color: var(--push); color: var(--push); }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      padding: 10px 14px 14px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .legend i {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border: 1.5px solid var(--line);
+      margin-right: 5px;
+      vertical-align: middle;
+    }
+    .legend .push i { background: #e8f5ec; border-color: var(--push); }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .criteria {
+      padding: 12px 14px 14px;
+      font-size: 12px;
+      color: var(--note);
+    }
+    .criteria dl {
+      margin: 0;
+      display: grid;
+      gap: 10px;
+    }
+    .criteria dt {
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 2px;
+    }
+    .criteria dd {
+      margin: 0;
+      padding-left: 0;
+    }
+    .criteria code {
+      font-size: 11px;
+      background: var(--fill);
+      padding: 1px 4px;
+      border: 1px solid var(--line-soft);
+    }
+
+    .notes { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
+    .note {
+      border: 1.5px dashed var(--line);
+      padding: 10px 12px;
+      font-size: 12px;
+      color: var(--note);
+      background: var(--fill-soft);
+    }
+    .note.push-note {
+      border-color: var(--push);
+      border-style: solid;
+      background: #f4fbf6;
+    }
+
+    .discuss {
+      margin-top: 28px;
+      border: 2px solid var(--wire);
+      background: #fff;
+      padding: 16px 18px 18px;
+    }
+    .discuss h2 {
+      margin: 0 0 10px;
+      font-size: 15px;
+    }
+    .discuss ol {
+      margin: 0;
+      padding-left: 22px;
+    }
+    .discuss li {
+      margin-bottom: 10px;
+      color: var(--note);
+    }
+    .discuss li strong {
+      color: var(--ink);
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .status {
+      display: inline-block;
+      border: 1px solid var(--line);
+      padding: 1px 6px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+    .status.built { background: #eaeaea; }
+    .status.concept { background: #fff; border-style: dashed; }
+
+    @media (max-width: 800px) {
+      .app { grid-template-columns: 1fr; }
+      .rail { flex-direction: row; border-right: none; border-bottom: 2px solid var(--wire); }
+      .lists, .grid-2 { grid-template-columns: 1fr; }
+      .list-panel { border-right: none; border-bottom: 1px solid var(--line-soft); }
+    }
+
+    @media print {
+      body { background: #fff; }
+      .page { margin: 0; max-width: none; }
+      .app { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="doc-header">
+      <h1>Assortment — Client wireframe</h1>
+      <p>
+        Section 04 focuses on <strong>cumulative introduction only</strong>: pick a brand,
+        start from an empty lineup, and greedily add SKUs one-by-one — always choosing the
+        next SKU that produces the largest share jump. Overlay WD and Product Sales Rate to
+        flag distribution push opportunities.
+      </p>
+      <div class="doc-meta">
+        <span><strong>Product:</strong> Market Simulator</span>
+        <span><strong>Section:</strong> 04 Assortment</span>
+        <span><strong>Date:</strong> 2026-08-30</span>
+        <span><strong>Status:</strong> Discussion draft v2</span>
+      </div>
+    </header>
+
+    <div class="app" aria-label="Assortment page wireframe">
+      <aside class="rail" aria-hidden="true">
+        <div class="rail-item">01</div>
+        <div class="rail-item">02</div>
+        <div class="rail-item">03</div>
+        <div class="rail-item active">04<br/>Asrt</div>
+        <div class="rail-item">05</div>
+      </aside>
+
+      <div class="main">
+        <div class="topbar">
+          <div>
+            <div class="crumb">Section 04</div>
+            <div class="page-title">Assortment</div>
+          </div>
+          <div class="filters">
+            <div class="filter">Segment filter A ▾</div>
+            <div class="filter">Segment filter B ▾</div>
+            <div class="filter">Segment filter C ▾</div>
+          </div>
+        </div>
+
+        <div class="content">
+          <!-- 1 Cumulative introduction -->
+          <section class="block">
+            <span class="anno" title="Primary tool">1</span>
+            <div class="block-head">
+              <div>
+                <h2>
+                  Cumulative introduction
+                  <span class="status built">Proposed v1</span>
+                </h2>
+                <p>
+                  Select a brand. Start with <strong>zero SKUs</strong> in the lineup. At each step,
+                  simulate adding every remaining SKU and pick the one with the
+                  <strong>maximum cumulative share jump</strong>. Repeat until all brand SKUs are ordered.
+                </p>
+              </div>
+              <button class="btn primary" type="button">Run</button>
+            </div>
+
+            <div class="toolbar">
+              <div class="field">
+                <label>Operation</label>
+                <div class="fixed">Introduction only</div>
+              </div>
+              <div class="field">
+                <label>Mode</label>
+                <div class="fixed">Cumulative only</div>
+              </div>
+              <div class="field">
+                <label>Metric</label>
+                <div class="fixed">Market share</div>
+              </div>
+              <div class="field">
+                <label>Brand</label>
+                <div class="dropdown">TOSHIBA</div>
+              </div>
+            </div>
+
+            <div class="algo-strip">
+              <strong>Greedy order (auto):</strong>
+              <span class="algo-step highlight"><span class="num">1</span> 32" HD Ready</span>
+              <span>→</span>
+              <span class="algo-step highlight"><span class="num">2</span> 43" Full HD <em>(+41 pp jump)</em></span>
+              <span>→</span>
+              <span class="algo-step"><span class="num">3</span> 40" Full HD</span>
+              <span>→</span>
+              <span class="algo-step"><span class="num">4</span> 49" Full HD</span>
+              <span>→</span>
+              <span class="algo-step"><span class="num">5</span> 50" Full HD</span>
+            </div>
+
+            <div class="lists">
+              <div class="list-panel">
+                <div class="list-head">
+                  <span>Introduction sequence</span>
+                  <span class="count">5</span>
+                </div>
+                <div class="list-body">
+                  <div class="sku-row introduced"><span class="step">1</span> LED HD Ready 32 <span class="jump">→ 53%</span></div>
+                  <div class="sku-row introduced"><span class="step">2</span> LED Full HD 43 <span class="jump">→ 94% (+41)</span></div>
+                  <div class="sku-row introduced"><span class="step">3</span> LED Full HD 40 <span class="jump">→ 98% (+4)</span></div>
+                  <div class="sku-row introduced"><span class="step">4</span> LED Full HD 49 <span class="jump">→ 99% (+1)</span></div>
+                  <div class="sku-row introduced"><span class="step">5</span> LED Full HD 50 <span class="jump">→ 100% (+1)</span></div>
+                </div>
+              </div>
+              <div class="list-panel">
+                <div class="list-head">
+                  <span>Starting lineup</span>
+                  <span class="count">0</span>
+                </div>
+                <div class="list-body">
+                  <div class="sku-row muted" style="padding: 16px 12px;">
+                    Empty — no SKUs listed at start. Each step adds exactly one SKU (the max-jump candidate).
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="chart">
+              <p class="chart-title">43" &amp; 50" are recommended to increase WD</p>
+              <p class="chart-subtitle">TOSHIBA · National · SMART TV · Jan–May 2022</p>
+
+              <div class="chart-frame" aria-label="Cumulative share bars, WD background, Product Sales Rate line">
+                <span class="chart-y-label">Cumulative product share</span>
+                <span class="chart-y-label right">Product sales rate</span>
+
+                <div class="chart-y-left">
+                  <span>100%</span>
+                  <span>75%</span>
+                  <span>50%</span>
+                  <span>25%</span>
+                  <span>0%</span>
+                </div>
+                <div class="chart-y-right">
+                  <span>3.0</span>
+                  <span>2.0</span>
+                  <span>1.0</span>
+                  <span>0</span>
+                </div>
+
+                <div class="chart-svg-wrap">
+                  <svg class="chart-svg" viewBox="0 0 500 220" preserveAspectRatio="none" aria-hidden="true">
+                    <!-- WD background bars (grey) -->
+                    <rect x="30" y="22" width="70" height="178" fill="#d4d4d4" stroke="#999" stroke-width="1" />
+                    <rect x="120" y="55" width="70" height="145" fill="#d4d4d4" stroke="#999" stroke-width="1" />
+                    <rect x="210" y="90" width="70" height="110" fill="#d4d4d4" stroke="#999" stroke-width="1" />
+                    <rect x="300" y="120" width="70" height="80" fill="#d4d4d4" stroke="#999" stroke-width="1" />
+                    <rect x="390" y="75" width="70" height="125" fill="#d4d4d4" stroke="#999" stroke-width="1" />
+
+                    <!-- Cumulative share step bars -->
+                    <!-- Step 1: 53% -->
+                    <rect x="30" y="84" width="70" height="116" fill="#1e4d7a" stroke="#333" stroke-width="1.5" />
+                    <text x="65" y="78" text-anchor="middle" font-size="11" font-weight="700" fill="#1e4d7a">53%</text>
+
+                    <!-- Step 2: 94% cumulative (+41 jump) -->
+                    <rect x="120" y="22" width="70" height="84" fill="#4a7fb8" stroke="#333" stroke-width="1.5" />
+                    <rect x="120" y="106" width="70" height="94" fill="#1e4d7a" stroke="#333" stroke-width="1.5" />
+                    <text x="155" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#1e4d7a">94%</text>
+
+                    <!-- Step 3: 98% -->
+                    <rect x="210" y="22" width="70" height="84" fill="#4a7fb8" stroke="#333" stroke-width="1.5" opacity="0.85" />
+                    <rect x="210" y="106" width="70" height="94" fill="#4a7fb8" stroke="#333" stroke-width="1.5" />
+                    <rect x="210" y="200" width="70" height="8" fill="#1e4d7a" stroke="#333" stroke-width="1.5" />
+                    <text x="245" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#1e4d7a">98%</text>
+
+                    <!-- Step 4: 99% -->
+                    <rect x="300" y="22" width="70" height="84" fill="#4a7fb8" stroke="#333" stroke-width="1.5" opacity="0.7" />
+                    <rect x="300" y="106" width="70" height="94" fill="#4a7fb8" stroke="#333" stroke-width="1.5" opacity="0.85" />
+                    <rect x="300" y="200" width="70" height="8" fill="#4a7fb8" stroke="#333" stroke-width="1.5" />
+                    <rect x="300" y="208" width="70" height="4" fill="#1e4d7a" stroke="#333" stroke-width="1.5" />
+                    <text x="335" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#1e4d7a">99%</text>
+
+                    <!-- Step 5: 100% -->
+                    <rect x="390" y="22" width="70" height="84" fill="#4a7fb8" stroke="#333" stroke-width="1.5" opacity="0.6" />
+                    <rect x="390" y="106" width="70" height="94" fill="#4a7fb8" stroke="#333" stroke-width="1.5" opacity="0.75" />
+                    <rect x="390" y="200" width="70" height="8" fill="#4a7fb8" stroke="#333" stroke-width="1.5" opacity="0.85" />
+                    <rect x="390" y="208" width="70" height="4" fill="#4a7fb8" stroke="#333" stroke-width="1.5" />
+                    <rect x="390" y="212" width="70" height="4" fill="#1e4d7a" stroke="#333" stroke-width="1.5" />
+                    <text x="425" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="#1e4d7a">100%</text>
+
+                    <!-- Product Sales Rate line (Value Sales / WD) -->
+                    <polyline
+                      points="65,52 155,48 245,72 335,145 425,68"
+                      fill="none"
+                      stroke="#c0392b"
+                      stroke-width="2.5"
+                      stroke-linejoin="round"
+                      stroke-linecap="round"
+                    />
+                    <circle cx="65" cy="52" r="4" fill="#fff" stroke="#c0392b" stroke-width="2" />
+                    <circle cx="155" cy="48" r="4" fill="#fff" stroke="#c0392b" stroke-width="2" />
+                    <circle cx="245" cy="72" r="4" fill="#fff" stroke="#c0392b" stroke-width="2" />
+                    <circle cx="335" cy="145" r="4" fill="#fff" stroke="#c0392b" stroke-width="2" />
+                    <circle cx="425" cy="68" r="4" fill="#fff" stroke="#c0392b" stroke-width="2" />
+
+                    <!-- Push WD arrows -->
+                    <polygon points="155,0 148,14 162,14" fill="#2d8a4e" />
+                    <polygon points="425,0 418,14 432,14" fill="#2d8a4e" />
+                  </svg>
+                </div>
+
+                <div class="callout-box" style="left: 38%; top: 6px;">
+                  <strong>Push WD</strong>
+                  Push WD to match 32" HD
+                </div>
+                <div class="callout-box" style="right: 8%; top: 6px; max-width: 80px;">
+                  <strong>Push</strong>
+                  High PSR, low WD
+                </div>
+                <div class="callout-box" style="left: 42%; bottom: 52px; max-width: 160px;">
+                  <strong>Product Sales Rate</strong>
+                  = Value Sales ÷ WD<br/>
+                  How much value sales increase per 1 WD point
+                </div>
+
+                <div class="chart-x">
+                  <span>32" HD Ready</span>
+                  <span>43" Full HD</span>
+                  <span>40" Full HD</span>
+                  <span>49" Full HD</span>
+                  <span>50" Full HD</span>
+                </div>
+              </div>
+
+              <div class="chart-legend">
+                <span class="wd"><i></i> WD (weighted distribution)</span>
+                <span class="share-first"><i></i> Cumulative product share (first step)</span>
+                <span class="share"><i></i> Incremental share added at step</span>
+                <span class="psr"><i></i> Product sales rate</span>
+                <span class="push"><i></i> Push WD recommendation</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- 2 Push criteria -->
+          <section class="block">
+            <span class="anno">2</span>
+            <div class="block-head">
+              <div>
+                <h2>
+                  WD push criteria
+                  <span class="status concept">Rule proposal</span>
+                </h2>
+                <p>
+                  Arrows appear when a SKU earns shelf space (positive incremental share) but
+                  is under-distributed relative to its sales efficiency.
+                </p>
+              </div>
+            </div>
+            <div class="criteria">
+              <dl>
+                <div>
+                  <dt>① Greedy introduction order</dt>
+                  <dd>
+                    At step <code>k</code>, from remaining brand SKUs, add the one with highest
+                    <code>Δ share<sub>cumulative</sub></code> when introduced on top of SKUs already selected in steps 1…k−1.
+                  </dd>
+                </div>
+                <div>
+                  <dt>② Product Sales Rate (PSR)</dt>
+                  <dd>
+                    <code>PSR = Value Sales ÷ WD</code> — reflects how much value sales increase per 1 WD point.
+                    Requires WD &gt; 0 in the data feed.
+                  </dd>
+                </div>
+                <div>
+                  <dt>③ Push WD arrow (proposed)</dt>
+                  <dd>
+                    Show green ↑ when <strong>all</strong> of:
+                    <ul style="margin: 6px 0 0; padding-left: 18px;">
+                      <li>SKU is in the introduction sequence (not delisted / excluded)</li>
+                      <li><code>PSR ≥ median(PSR)</code> across brand SKUs in current filter</li>
+                      <li><code>WD &lt; WD<sub>ref</sub> − 10 pp</code> where <code>WD<sub>ref</sub></code> = highest WD among SKUs already introduced <em>or</em> the brand anchor SKU (step 1)</li>
+                    </ul>
+                    Label: “Push WD to match [anchor SKU]” when gap is vs anchor; otherwise “Push — high PSR, low WD”.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Example in chart above</dt>
+                  <dd>
+                    43" has the largest share jump (+41 pp) but WD trails 32" HD → push to match anchor.
+                    50" has PSR 2.1 (above median) with WD below reference → push despite small final share increment.
+                    49" has low PSR (0.6) → no arrow even though it is in the lineup.
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          </section>
+
+          <!-- 3 Recommendation table -->
+          <section class="block">
+            <span class="anno">3</span>
+            <div class="block-head">
+              <div>
+                <h2>
+                  Recommended assortment
+                  <span class="status concept">Derived from chart</span>
+                </h2>
+                <p>
+                  Keep / Watch / Push WD for the current brand + filter context.
+                  “Push WD” replaces generic Watch when PSR criteria fire.
+                </p>
+              </div>
+            </div>
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>Intro step</th>
+                  <th>WD</th>
+                  <th>PSR</th>
+                  <th>Recommendation</th>
+                  <th>Why</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>LED HD Ready 32</td>
+                  <td>1</td>
+                  <td>92</td>
+                  <td>2.6</td>
+                  <td><span class="cell keep">Keep</span></td>
+                  <td>Anchor SKU — highest WD, first in greedy order</td>
+                </tr>
+                <tr>
+                  <td>LED Full HD 43</td>
+                  <td>2</td>
+                  <td>68</td>
+                  <td>2.5</td>
+                  <td><span class="cell push">Push WD</span></td>
+                  <td>Max share jump (+41 pp) but WD 24 pp below anchor</td>
+                </tr>
+                <tr>
+                  <td>LED Full HD 40</td>
+                  <td>3</td>
+                  <td>71</td>
+                  <td>1.8</td>
+                  <td><span class="cell keep">Keep</span></td>
+                  <td>In lineup; WD gap vs anchor within tolerance</td>
+                </tr>
+                <tr>
+                  <td>LED Full HD 49</td>
+                  <td>4</td>
+                  <td>58</td>
+                  <td>0.6</td>
+                  <td><span class="cell watch">Watch</span></td>
+                  <td>Low PSR — poor return on additional WD</td>
+                </tr>
+                <tr>
+                  <td>LED Full HD 50</td>
+                  <td>5</td>
+                  <td>62</td>
+                  <td>2.1</td>
+                  <td><span class="cell push">Push WD</span></td>
+                  <td>High PSR, WD 30 pp below anchor</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="legend">
+              <span class="keep"><i></i> Keep / in lineup</span>
+              <span class="watch"><i></i> Watch — low efficiency</span>
+              <span class="push"><i></i> Push WD</span>
+            </div>
+          </section>
+
+          <!-- 4 Notes -->
+          <div class="grid-2">
+            <section class="block">
+              <span class="anno">4</span>
+              <div class="block-head">
+                <div>
+                  <h2>
+                    Headline insight
+                    <span class="status concept">Auto-generated</span>
+                  </h2>
+                  <p>One-line summary from greedy order + push flags.</p>
+                </div>
+              </div>
+              <div class="notes">
+                <div class="note push-note">
+                  <strong>43" &amp; 50" are recommended to increase WD</strong> — both show high Product Sales Rate
+                  but Weighted Distribution lags the 32" anchor. Prioritize distribution investment before
+                  adding lower-PSR sizes (49").
+                </div>
+              </div>
+            </section>
+
+            <section class="block">
+              <span class="anno">5</span>
+              <div class="block-head">
+                <div>
+                  <h2>
+                    Out of scope (removed)
+                  </h2>
+                  <p>Not part of this wireframe revision.</p>
+                </div>
+              </div>
+              <div class="notes">
+                <div class="note">Removal operation — dropped; introduction only.</div>
+                <div class="note">Exclusive mode — dropped; cumulative only.</div>
+                <div class="note">Manual SKU pick lists — order is algorithmic (max jump).</div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <section class="discuss">
+      <h2>Discussion points for client</h2>
+      <ol>
+        <li>
+          <strong>① Cumulative introduction from empty lineup</strong>
+          Confirm greedy max-jump ordering is the right default. Should users be able to override
+          the sequence, or lock certain SKUs as mandatory first picks?
+        </li>
+        <li>
+          <strong>② WD + Product Sales Rate overlay</strong>
+          Do we have reliable WD and value sales in the study feed for all clients?
+          If WD is missing, hide PSR line and push arrows.
+        </li>
+        <li>
+          <strong>③ Push WD criteria</strong>
+          Proposed rule: PSR ≥ median AND WD at least 10 pp below anchor (step-1 SKU or highest-WD intro).
+          Is 10 pp the right gap? Should anchor always be step 1 or highest WD in category?
+        </li>
+        <li>
+          <strong>④ Recommended assortment table</strong>
+          Map intro step + push flags to Keep / Watch / Push WD. Delist is out of scope for introduction-only flow.
+        </li>
+        <li>
+          <strong>Scope for next sprint</strong>
+          Build ① greedy intro chart with WD + PSR overlays; derive ③ table and headline from same run.
+        </li>
+      </ol>
+    </section>
+  </div>
+</body>
+</html>
