@@ -5,6 +5,7 @@ import { api } from "../api/client";
 import { useGroups, useRecalculate, useExportSession, useApplySegmentation } from "../api/hooks";
 import type { CellValue, GroupRow, ResultRow, SegmentationState } from "../api/types";
 import { ManufacturerScenarioCompare } from "../components/ManufacturerScenarioCompare";
+import { TradeEffectPanel } from "../components/TradeEffectPanel";
 import { ResultsGrid } from "../components/ResultsGrid";
 import { SaveScenarioButton } from "../components/SaveScenarioButton";
 import { ScenarioCompareSection } from "../components/ScenarioCompareSection";
@@ -629,6 +630,21 @@ export function RunnerPage() {
     return new Set(editRows.map((r) => String(r["Product Name"] ?? "")));
   }, [ownNames, editRows]);
 
+  /** Brand groups for Trade Effect. Session groups stay on the default Brand type. */
+  const tradeEffectBrands = useMemo(() => {
+    const brandType = defaultGroupType(session?.groupTypes);
+    const brandGroups =
+      (brandType && groupsByType[brandType]) ||
+      (session?.groups?.length ? session.groups : groups);
+    if (!brandGroups?.length) return [];
+    return brandGroups
+      .map((g) => ({
+        name: String(g.Name ?? ""),
+        productNames: Array.isArray(g.productNames) ? g.productNames.map(String) : [],
+      }))
+      .filter((g) => g.name && g.productNames.length > 0);
+  }, [session?.groupTypes, session?.groups, groupsByType, groups]);
+
   /** Own brand rollups for the Base vs Current chart filter (Brand groups containing Company SKUs). */
   const ownBrandsForCompare = useMemo(() => {
     if (ownNames.size === 0) return [];
@@ -776,6 +792,11 @@ export function RunnerPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100%" }}>
+      <TradeEffectPanel
+        slug={session.slug}
+        brandGroups={tradeEffectBrands}
+        ownSkuNames={ownNames}
+      />
       <ScenarioManagerBar
         pendingChanges={pendingChanges}
         onCompare={scrollToCompare}
