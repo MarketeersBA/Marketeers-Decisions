@@ -48,6 +48,8 @@ backend/studies/
 
 ## Setup
 
+Requires **Python 3.12 or newer** (`requires-python` in `backend/pyproject.toml`; `backend/.python-version` pins 3.12).
+
 ```powershell
 cd market_simulator
 python -m venv .venv

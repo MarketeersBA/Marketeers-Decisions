@@ -4,6 +4,8 @@ One codebase; behavior is selected with environment variables.
 
 ## Local development (default)
 
+Requires **Python 3.12 or newer**.
+
 | Variable | Value |
 |----------|--------|
 | `APP_ENV` | `development` |
