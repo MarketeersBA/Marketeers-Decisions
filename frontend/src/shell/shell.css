@@ -14,45 +14,17 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  padding: 12px 0 20px;
-  gap: 8px;
+  padding: 16px 0 18px;
+  gap: 0;
   overflow: hidden;
   transition: width 0.22s ease, flex-basis 0.22s ease, padding 0.22s ease, border-color 0.22s ease;
 }
 .icon-rail.collapsed {
-  width: 44px;
-  flex-basis: 44px;
-  min-width: 44px;
-  padding-left: 0;
-  padding-right: 0;
-}
-.sidebar-top {
-  display: flex;
-  justify-content: flex-end;
-  padding: 0 12px 4px;
-  flex: 0 0 auto;
-}
-.icon-rail.collapsed .sidebar-top {
-  justify-content: center;
-  padding: 0 0 4px;
-}
-.sidebar-toggle-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 0;
+  flex-basis: 0;
+  min-width: 0;
   padding: 0;
-  border: 1px solid var(--sidebar-line);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--sidebar-text-muted);
-  cursor: pointer;
-}
-.sidebar-toggle-btn:hover {
-  background: var(--sidebar-hover);
-  color: var(--sidebar-text);
-  border-color: rgba(255, 255, 255, 0.28);
+  border-right-color: transparent;
 }
 .sidebar-body {
   display: flex;
@@ -67,25 +39,24 @@
 .sidebar-brand {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 0 16px 16px;
-  border-bottom: 1px solid var(--sidebar-line);
-  margin: 0 0 8px;
+  padding: 0 16px 18px;
+  margin: 0;
 }
 .logo-card {
   background: #ffffff;
-  border: 1px solid var(--sidebar-line);
-  border-radius: 8px;
-  padding: 16px;
+  border: 0;
+  border-radius: 16px;
+  padding: 14px 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
+  box-shadow: 0 10px 22px rgba(0, 12, 32, 0.18);
 }
 .sidebar-logo {
   max-width: 100%;
   height: auto;
-  max-height: 40px;
+  max-height: 52px;
 }
 .sidebar-brand-text {
   line-height: 1.3;
@@ -113,8 +84,8 @@
 .sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 8px 12px 0;
+  gap: 6px;
+  padding: 6px 14px 0;
 }
 .rail-bottom {
   margin-top: auto;
@@ -124,40 +95,33 @@
   gap: 8px;
 }
 .sidebar-project-details {
-  display: flex;
-  flex-direction: column;
-  padding: 4px 8px 0;
-  gap: 2px;
-}
-.detail-row {
-  display: flex;
-  flex-wrap: nowrap;
+  display: grid;
+  grid-template-columns: max-content max-content minmax(0, 1fr);
+  column-gap: 6px;
+  row-gap: 3px;
   align-items: baseline;
+  padding: 4px 8px 0;
   font-size: 11px;
   line-height: 1.55;
-  gap: 0 5px;
-  min-width: 0;
+}
+.detail-row {
+  display: contents;
 }
 .detail-label {
   color: var(--sidebar-text);
   font-weight: 700;
-  flex: 0 0 auto;
 }
 .detail-sep {
   color: var(--sidebar-text-muted);
-  flex: 0 0 auto;
+  text-align: center;
 }
 .detail-value {
   color: var(--sidebar-text-muted);
   font-weight: 400;
   min-width: 0;
-  flex: 1 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.detail-row-multiline {
-  align-items: flex-start;
 }
 .detail-row-multiline .detail-value {
   white-space: normal;
@@ -167,13 +131,13 @@
   line-clamp: 2;
 }
 .rail-item {
-  height: 40px;
-  border-radius: 6px;
+  height: 46px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  padding: 0 12px;
-  color: var(--sidebar-text);
+  padding: 0 12px 0 10px;
+  color: #9aafc6;
   cursor: pointer;
   position: relative;
   text-decoration: none;
@@ -181,41 +145,51 @@
 }
 .rail-icon {
   font-size: 11px;
+  font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  flex: 0 0 16px;
-  color: var(--sidebar-text-muted);
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #8ea3bb;
+  font-family: Inter, ui-sans-serif, sans-serif;
+  letter-spacing: -0.02em;
 }
 .rail-item.active .rail-icon {
-  color: var(--sidebar-blue);
+  background: #c41230;
+  border-color: #c41230;
+  color: #fff;
 }
 .rail-label {
-  font-size: 13.5px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .rail-item:hover {
-  background: var(--sidebar-hover);
-  color: var(--sidebar-text);
+  background: rgba(255, 255, 255, 0.06);
+  color: #d5e0ec;
 }
 .rail-item.active {
-  background: var(--sidebar-active);
-  color: var(--sidebar-text);
+  background: #1a3c6e;
+  color: #fff;
+}
+.rail-item.active .rail-label {
+  font-weight: 600;
 }
 .rail-item.active::before {
-  content: '';
+  content: "";
   position: absolute;
-  left: 0;
-  top: 6px;
-  bottom: 6px;
+  left: -14px;
+  top: 11px;
+  bottom: 11px;
   width: 3px;
   border-radius: 0 3px 3px 0;
-  background: var(--sidebar-blue);
+  background: #d23b46;
 }
 .rail-item.disabled {
   opacity: 0.55;
@@ -331,13 +305,41 @@
   color: var(--text-muted);
   line-height: 1;
 }
+.shell-menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  padding: 0;
+  border: 1px solid #e4e9f0;
+  border-radius: 10px;
+  background: #fff;
+  color: #6e7d92;
+  cursor: pointer;
+}
+.shell-menu-btn:hover {
+  background: #f7f9fb;
+  border-color: #d5dde8;
+  color: #4d5d73;
+}
+.shell-menu-rule {
+  width: 1px;
+  height: 22px;
+  flex: 0 0 1px;
+  margin: 0 6px 0 2px;
+  background: #e6ebf1;
+}
 .ctx-section-title {
   margin: 0;
-  font-size: 17px;
+  min-width: 0;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 18px;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   line-height: 1.1;
-  color: var(--brand);
+  color: #0f172a;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -437,17 +439,26 @@
 }
 
 .sidebar-signout {
-  margin: 12px 16px 0;
-  padding: 8px 10px;
-  border: 1px solid var(--sidebar-line);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--sidebar-text);
-  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 8px 16px 0;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #c5d2e2;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 .sidebar-signout:hover {
-  background: var(--sidebar-hover);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
 }
 
 .page-outlet {

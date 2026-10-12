@@ -94,7 +94,23 @@ function FilterDropdown({
 
 const EMPTY_OPTIONS: string[] = [];
 
-export function ContextBar() {
+function MenuIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 7h16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M4 12h16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M4 17h16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function ContextBar({
+  collapsed,
+  onToggleSidebar,
+}: {
+  collapsed: boolean;
+  onToggleSidebar: () => void;
+}) {
   const { pathname } = useLocation();
   const { session } = useSession();
   const [category, setCategory] = useState("");
@@ -107,13 +123,21 @@ export function ContextBar() {
   return (
     <div className="context-bar-stack">
       <div className="context-bar">
+        <button
+          type="button"
+          className="shell-menu-btn"
+          onClick={onToggleSidebar}
+          aria-label={collapsed ? "Show sidebar" : "Hide sidebar"}
+          title={collapsed ? "Show sidebar" : "Hide sidebar"}
+          aria-pressed={!collapsed}
+        >
+          <MenuIcon />
+        </button>
+        <span className="shell-menu-rule" aria-hidden="true" />
         {section ? (
-          <div className="ctx-section">
-            <div className="ctx-section-crumb">Section {section.num}</div>
-            <h1 className="ctx-section-title" dir="auto">
-              {section.title}
-            </h1>
-          </div>
+          <h1 className="ctx-section-title" dir="auto">
+            {section.title}
+          </h1>
         ) : null}
 
         <div className="ctx-spacer"></div>

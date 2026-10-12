@@ -31,13 +31,9 @@ export function AppShell() {
 
   return (
     <div className={`shell${collapsed ? " sidebar-collapsed" : ""}`}>
-      <Sidebar
-        collapsed={collapsed}
-        onToggle={toggleSidebar}
-        onSignOut={mode === "dev" ? undefined : signOut}
-      />
+      <Sidebar collapsed={collapsed} onSignOut={mode === "dev" ? undefined : signOut} />
       <div className="workspace">
-        <ContextBar />
+        <ContextBar collapsed={collapsed} onToggleSidebar={toggleSidebar} />
         <main className="page-outlet">
           <Outlet />
         </main>

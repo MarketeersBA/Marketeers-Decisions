@@ -261,7 +261,7 @@ export function StudyUploadWizard({ onCancel, embedded = false }: StudyUploadWiz
       </div>
 
       {errorMsg && (
-        <div className="panel error mb-16">
+        <div className="banner-error mb-16" role="alert">
           <div className="error-title">Import Error</div>
           <div>{errorMsg}</div>
         </div>
@@ -325,7 +325,7 @@ export function StudyUploadWizard({ onCancel, embedded = false }: StudyUploadWiz
       {step === 1 && (
         <div className="wizard-step-panel">
           <h2>Step 2: Upload HBU Utilities</h2>
-          <div className="banner-info mb-16">
+          <div className="banner-success mb-16">
             Design loaded: <strong>{meta?.study_name || "Unnamed Study"}</strong> &middot; {products.length} products &middot; {attributes.length} attributes &middot; {groups.length} groups
           </div>
 

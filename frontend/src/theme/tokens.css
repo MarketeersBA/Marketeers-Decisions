@@ -8,7 +8,7 @@
   --brand-line: #1a3a66;
 
   --sidebar-blue: #66b3ff;
-  --sidebar-bg: #003060;
+  --sidebar-bg: #00265e;
   --sidebar-hover: rgba(255, 255, 255, 0.08);
   --sidebar-active: rgba(255, 255, 255, 0.14);
   --sidebar-line: rgba(255, 255, 255, 0.16);
@@ -51,7 +51,7 @@
   /* Display face for headings — body copy stays on Inter. */
   --font-display: "Fraunces", Georgia, "Times New Roman", serif;
 
-  --sidebar-width: 240px;
+  --sidebar-width: 272px;
   --topbar-height: 56px;
   --radius: 8px;
   --space: 8px;

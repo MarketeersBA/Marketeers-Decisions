@@ -2036,13 +2036,26 @@
   margin-bottom: 20px;
 }
 
-.banner-info {
-  background: var(--accent-pale);
-  color: var(--accent);
+.banner-success,
+.banner-error {
   padding: 10px 16px;
   border-radius: 6px;
   font-size: 13px;
-  border: 1px solid var(--accent);
+  border: 1px solid transparent;
+}
+.banner-success {
+  background: var(--pos-bg);
+  color: var(--pos-fg);
+  border-color: var(--pos-fg);
+}
+.banner-error {
+  background: var(--neg-bg);
+  color: var(--neg-fg);
+  border-color: var(--danger);
+}
+.banner-error .error-title {
+  font-weight: 700;
+  margin-bottom: 4px;
 }
 
 .review-columns {
