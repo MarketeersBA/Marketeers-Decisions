@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from io import BytesIO
+from numbers import Integral, Real
 from pathlib import Path
 from typing import Any, BinaryIO, Union
 
@@ -34,6 +35,37 @@ _SKU_HEADER_RE = re.compile(r"^SKU\s*(\d+)$", re.I)
 
 class ExcelImportError(ValueError):
     pass
+
+
+def format_cell_text(val: Any) -> str:
+    """Text for an Excel cell. Numeric values drop binary float noise."""
+    if val is None:
+        return ""
+    try:
+        if pd.isna(val):
+            return ""
+    except (TypeError, ValueError):
+        pass
+    if isinstance(val, bool):
+        return str(val)
+    if isinstance(val, Integral):
+        return str(int(val))
+    if isinstance(val, Real):
+        return _format_number(float(val))
+    text = str(val).strip()
+    if re.fullmatch(r"-?\d+\.\d+", text):
+        try:
+            return _format_number(float(text))
+        except ValueError:
+            return text
+    return text
+
+
+def _format_number(num: float) -> str:
+    if num.is_integer():
+        return str(int(num))
+    rounded = round(num, 12)
+    return f"{rounded:.12f}".rstrip("0").rstrip(".")
 
 
 def _seek_start(source: FileSource) -> None:
@@ -383,7 +415,7 @@ def _parse_attributes(xls: pd.ExcelFile) -> tuple[list[AttributeDef], dict[str, 
             level_names[name] = _extract_level_names_from_sheet(levels_df, name)
         list_df = _read_sheet(xls, rf"{re.escape(name)}.*list", header=0)
         if not list_df.empty and "Name" in list_df.columns:
-            level_names[name] = list_df["Name"].dropna().astype(str).tolist()
+            level_names[name] = [format_cell_text(v) for v in list_df["Name"].dropna().tolist()]
     return attrs, level_names
 
 
@@ -397,8 +429,8 @@ def _extract_level_names_from_sheet(df: pd.DataFrame, attr_name: str) -> list[st
         val = row0[col]
         if pd.isna(val):
             continue
-        s = str(val).strip()
-        if s.lower() in ("nan", "levels"):
+        s = format_cell_text(val)
+        if not s or s.lower() in ("nan", "levels"):
             continue
         col_str = str(col)
         if re.match(r"Level\s*\d+", col_str, re.I):
@@ -436,11 +468,11 @@ def _parse_products(xls: pd.ExcelFile, attributes: list[AttributeDef]) -> list[P
             if attr.attr_type == "Discrete":
                 if attr.level_names:
                     try:
-                        base_attrs[attr.name] = attr.level_names.index(str(val).strip()) + 1
+                        base_attrs[attr.name] = attr.level_names.index(format_cell_text(val)) + 1
                     except ValueError:
-                        base_attrs[attr.name] = str(val).strip()
+                        base_attrs[attr.name] = format_cell_text(val)
                 else:
-                    base_attrs[attr.name] = str(val).strip()
+                    base_attrs[attr.name] = format_cell_text(val)
             else:
                 try:
                     base_attrs[attr.name] = float(val)

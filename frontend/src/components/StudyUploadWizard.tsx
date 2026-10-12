@@ -29,6 +29,19 @@ interface ParseMeta {
   size_unit_label?: string;
 }
 
+function formatLevelNames(names: string[] | undefined): string {
+  if (!names?.length) return "";
+  return names
+    .map((name) => {
+      if (!/^-?\d+\.\d+$/.test(name)) return name;
+      const num = Number(name);
+      if (!Number.isFinite(num)) return name;
+      const rounded = Number(num.toFixed(12));
+      return String(rounded);
+    })
+    .join(", ");
+}
+
 type StudyUploadWizardProps = {
   onCancel?: () => void;
   embedded?: boolean;
@@ -557,7 +570,7 @@ export function StudyUploadWizard({ onCancel, embedded = false }: StudyUploadWiz
 
             {activeTable === "products" && (
               <div className="table-wrap">
-                <table className="studies-table">
+                <table className="wizard-preview-table">
                   <thead>
                     <tr>
                       <th>ID</th>
@@ -582,7 +595,7 @@ export function StudyUploadWizard({ onCancel, embedded = false }: StudyUploadWiz
 
             {activeTable === "attributes" && (
               <div className="table-wrap">
-                <table className="studies-table">
+                <table className="wizard-preview-table">
                   <thead>
                     <tr>
                       <th>Attribute Name</th>
@@ -595,7 +608,7 @@ export function StudyUploadWizard({ onCancel, embedded = false }: StudyUploadWiz
                       <tr key={idx}>
                         <td><strong>{a.name}</strong></td>
                         <td>{a.attr_type}</td>
-                        <td>{a.level_names?.join(", ") || `${a.level_count} levels`}</td>
+                        <td>{formatLevelNames(a.level_names) || `${a.level_count} levels`}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -608,7 +621,7 @@ export function StudyUploadWizard({ onCancel, embedded = false }: StudyUploadWiz
                 {groups.length === 0 ? (
                   <p className="no-data">No groups parsed.</p>
                 ) : (
-                  <table className="studies-table">
+                  <table className="wizard-preview-table">
                     <thead>
                       <tr>
                         <th>Group Type</th>
@@ -634,14 +647,28 @@ export function StudyUploadWizard({ onCancel, embedded = false }: StudyUploadWiz
       )}
 
       {step === 3 && (
-        <div className="wizard-step-panel success-panel text-center">
-          <div className="success-icon">🎉</div>
+        <div className="wizard-step-panel success-panel">
+          <div className="success-icon" aria-hidden="true">
+            <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+              <circle cx="28" cy="28" r="26" stroke="currentColor" strokeWidth="2" />
+              <path
+                d="M17 29.2 24.2 36.5 39 20.5"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
           <h2>Study Created Successfully!</h2>
           <p className="success-description">
             Study <strong>{studyName}</strong> has been parsed, calibrated, and registered in the simulation index.
           </p>
 
           <div className="success-cta-box">
+            <button type="button" className="btn-secondary btn-large" onClick={resetWizard}>
+              Create Another Study
+            </button>
             <button
               type="button"
               className="btn-primary btn-large"
@@ -649,9 +676,6 @@ export function StudyUploadWizard({ onCancel, embedded = false }: StudyUploadWiz
               onClick={() => createdSlug && handleOpenStudy(createdSlug)}
             >
               {loadSessionMutation.isPending ? "Opening..." : "Open in Price Simulation ➔"}
-            </button>
-            <button type="button" className="btn-secondary btn-large" onClick={resetWizard}>
-              Create Another Study
             </button>
           </div>
         </div>

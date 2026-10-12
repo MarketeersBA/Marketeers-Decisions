@@ -2170,17 +2170,54 @@
 
 .table-wrap {
   max-height: 250px;
-  overflow-y: auto;
+  overflow: auto;
   background: var(--surface);
+}
+
+.wizard-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  table-layout: fixed;
+}
+
+.wizard-preview-table th,
+.wizard-preview-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.wizard-preview-table th {
+  background: var(--bg);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.wizard-preview-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .success-panel {
   padding: 48px 24px;
+  text-align: center;
+}
+
+.success-panel h2 {
+  text-align: center;
 }
 
 .success-icon {
-  font-size: 64px;
+  display: flex;
+  justify-content: center;
   margin-bottom: 16px;
+  color: var(--pos-fg);
 }
 
 .success-description {
