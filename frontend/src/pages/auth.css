@@ -1,7 +1,9 @@
 .auth-page {
-  min-height: 100vh;
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
   display: flex;
-  align-items: center;
+  align-items: safe center;
   justify-content: center;
   padding: 24px;
   background: var(--bg);
