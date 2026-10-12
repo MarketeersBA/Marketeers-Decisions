@@ -34,7 +34,7 @@ Open http://localhost:5173
 
 Legacy studies under `backend/studies/{slug}/` are still read when `client_id=local-dev`.
 
-To click through signup and sign-in without AWS, set `MARKET_SIM_AUTH=mock` and keep `APP_ENV=development`, then restart the API. Accounts live in `backend/data/mock_auth/` (gitignored). The confirmation code is `000000`. Each email is its own tenant, not `local-dev`. The mock issuer stays off when `APP_ENV` is anything else. Production uses `cognito`.
+To click through signup and sign-in without AWS, set `MARKET_SIM_AUTH=mock` and keep `APP_ENV=development`, then restart the API. The same pages are used in production: `/signup` (email and password only), `/confirm` (the verification code), then `/login`. Mock accounts live in `backend/data/mock_auth/` (gitignored). The confirmation code is `000000`, shown on the confirm page. Each email is its own tenant, not `local-dev`, so studies under `backend/studies/` do not appear. The mock issuer stays off when `APP_ENV` is anything else.
 
 ## AWS production (target)
 
@@ -52,7 +52,7 @@ To click through signup and sign-in without AWS, set `MARKET_SIM_AUTH=mock` and 
 
 Compute: EC2 Docker, single `uvicorn` worker (`--workers 1`).
 
-Create the user pool once in that AWS account: email as the username, email verification on, Lite or Essentials. The API verifies Cognito ID tokens and maps `sub` to a `clients` row. Direct sign-in stays inside Cognito's 10,000 monthly-active-user allowance.
+Create the user pool once in that AWS account: email as the username, email verification on, public app client with no secret, SRP enabled, Lite or Essentials. Signup collects email and password only. Cognito emails the verification code; the confirm page sends it to Cognito, and the account cannot sign in until that succeeds. Password rules are the user pool policy. The API verifies Cognito ID tokens and maps `sub` to a `clients` row. Direct sign-in stays inside Cognito's 10,000 monthly-active-user allowance.
 
 Before deploy or container start, run migrations against RDS:
 

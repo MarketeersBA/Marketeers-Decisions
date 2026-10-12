@@ -82,7 +82,7 @@ cd ..\backend
 uvicorn api.main:app --port 8000
 ```
 
-When `frontend/dist` exists, the API serves the SPA at `/`.
+The API serves the SPA from `backend/api/spa_dist` after `scripts/build_spa.ps1`. `npm run build` alone writes `frontend/dist`, which the API does not mount.
 
 For FastAPI Cloud (GitHub Actions or terminal), see [`DEPLOY.md`](DEPLOY.md).
 

@@ -156,19 +156,9 @@ VITE_API_BASE_URL=https://marketsimulator.fastapicloud.dev
 
 Keep empty (or unset) for local Vite + proxy.
 
-### 2. Backend: tighten CORS
+### 2. Backend: allow the UI origin
 
-In `backend/api/main.py`, replace the open `*` origin with your Vercel URL:
-
-```python
-DEV_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "https://your-app.vercel.app",
-]
-```
-
-Redeploy the API after changing CORS.
+CORS is not a wildcard. In development the API allows `http://localhost:5173` and `http://127.0.0.1:5173`. Any other origin, including a split UI, must be listed in `MARKET_SIM_CORS_ORIGINS` (comma-separated, no `*`). Redeploy or restart the API after changing it.
 
 ### 3. Stop bundling the SPA into FastAPI deploys
 
