@@ -37,9 +37,11 @@ function SidebarToggleIcon({ collapsed }: { collapsed: boolean }) {
 export function Sidebar({
   collapsed,
   onToggle,
+  onSignOut,
 }: {
   collapsed: boolean;
   onToggle: () => void;
+  onSignOut?: () => void;
 }) {
   const { session } = useSession();
 
@@ -125,6 +127,11 @@ export function Sidebar({
             </div>
           ))}
         </div>
+        {onSignOut ? (
+          <button type="button" className="sidebar-signout" onClick={onSignOut}>
+            Sign out
+          </button>
+        ) : null}
       </div>
       </div>
     </aside>

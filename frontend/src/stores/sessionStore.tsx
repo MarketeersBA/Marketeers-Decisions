@@ -10,6 +10,7 @@ import {
 
 import { api } from "../api/client";
 import type { SessionPayload } from "../api/types";
+import { useAuth } from "../auth/AuthProvider";
 
 const SESSION_STORAGE_KEY = "ms_session_id";
 
@@ -22,10 +23,16 @@ interface SessionState {
 const SessionContext = createContext<SessionState | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
+  const { ready, mode, signedIn } = useAuth();
   const [session, setSessionState] = useState<SessionPayload | null>(null);
   const [restoring, setRestoring] = useState(true);
 
   useEffect(() => {
+    if (!ready) return;
+    if ((mode === "cognito" || mode === "mock") && !signedIn) {
+      setRestoring(false);
+      return;
+    }
     const sessionId = sessionStorage.getItem(SESSION_STORAGE_KEY);
     if (!sessionId) {
       setRestoring(false);
@@ -48,7 +55,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [ready, mode, signedIn]);
 
   const setSession = useCallback((next: SessionPayload | null) => {
     setSessionState(next);

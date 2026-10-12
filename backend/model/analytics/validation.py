@@ -194,7 +194,10 @@ def _run_scenario(
     """Clone study, apply optional scenario + filters, predict, rebase to audit total."""
     if scenario_name:
         trial = prepare_analytics_project(
-            base.slug, filters=filters, base_scenario=scenario_name
+            base.slug,
+            client_id=base.client_id,
+            filters=filters,
+            base_scenario=scenario_name,
         )
     else:
         trial = clone_project(base)
@@ -313,18 +316,15 @@ def validation_scenario_score(
     from data.scenario_store import ScenarioStore
     from model.project_core import ProjectCore
 
-    store = ScenarioStore(slug)
+    anchor = ProjectCore(slug)
+    store = ScenarioStore(slug, anchor.client_id)
     if not store.exists(scenario_name):
         raise FileNotFoundError(f"Scenario not found: {scenario_name}")
     scenario = store.load(scenario_name)
     if not scenario.validation:
         raise ValueError(f"Scenario is not flagged as validation: {scenario_name}")
 
-    trial = _run_scenario(
-        ProjectCore(slug),
-        scenario_name,
-        filters=[],
-    )
+    trial = _run_scenario(anchor, scenario_name, filters=[])
     audit_total = trial.get_total_products_audit_share()
     if audit_total <= 0:
         return {

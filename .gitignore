@@ -6,6 +6,7 @@ ManageScenariosForm.cs
 /backend/studies
 /backend/data/app.db
 /backend/data/cache
+/backend/data/mock_auth
 /backend/api/spa_dist
 /backend/build
 /backend/*.egg-info

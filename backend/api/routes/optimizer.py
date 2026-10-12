@@ -10,10 +10,10 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
 import pandas as pd
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
-from api.deps import resolve_client_id
+from api.deps import get_current_client_id
 from api.schemas import CorridorPreviewRequest, RunOptimizerRequest, SaveOptimizerScenarioRequest
 from api.study_access import ensure_study_access
 from api.serializers import dataframe_to_records, segmentation_payload
@@ -43,6 +43,7 @@ router = APIRouter(prefix="/api/{slug}/optimizer", tags=["optimizer"])
 class JobRecord:
     job_id: str
     slug: str
+    client_id: str
     status: str  # "running" | "done" | "cancelled" | "error"
     evals: int = 0
     estimated_evals: int = 100
@@ -72,9 +73,9 @@ def _pct_points_to_fraction(value: float | None) -> float | None:
     return float(value) / 100.0
 
 
-def _get_project(slug: str) -> ProjectCore:
-    ensure_study_access(resolve_client_id(), slug)
-    project = ProjectCore(slug)
+def _get_project(slug: str, client_id: str) -> ProjectCore:
+    ensure_study_access(client_id, slug)
+    project = ProjectCore(slug, client_id=client_id)
     project.initialize()
     return project
 
@@ -129,6 +130,7 @@ def _parse_segment_filters(
 def _prepare_optimizer_project(
     slug: str,
     *,
+    client_id: str,
     assignment_key: str | None = None,
     member: str | None = None,
     filters: list | None = None,
@@ -138,9 +140,9 @@ def _prepare_optimizer_project(
     skip_brands: list[str] | None = None,
 ) -> ProjectCore:
     """Load study base or a saved scenario, then apply segment filter(s)."""
-    project = _get_project(slug)
+    project = _get_project(slug, client_id)
     if base_scenario:
-        store = ScenarioStore(slug)
+        store = ScenarioStore(slug, client_id)
         try:
             scenario = store.load(base_scenario)
         except FileNotFoundError as exc:
@@ -375,9 +377,11 @@ def _build_brand_totals(
     return out
 
 
-def _build_result_payload(slug: str, res: OptResult, req: RunOptimizerRequest) -> dict:
+def _build_result_payload(
+    slug: str, res: OptResult, req: RunOptimizerRequest, client_id: str
+) -> dict:
     setup = _setup_from_request(req)
-    project = _prepare_optimizer_project(slug, **setup)
+    project = _prepare_optimizer_project(slug, client_id=client_id, **setup)
     if project.results is None or project.results.empty:
         project.reload_results()
     base_df = project.results.copy()
@@ -467,10 +471,9 @@ _executor = ThreadPoolExecutor(max_workers=2)
 
 
 def _persist_job(job: JobRecord) -> None:
-    from api.deps import resolve_client_id
     from db.repository import OptimizerJobRepository
 
-    client_id = resolve_client_id()
+    client_id = job.client_id
     study_id = OptimizerJobRepository().study_id_for_slug(client_id, job.slug)
     if not study_id:
         return
@@ -486,12 +489,19 @@ def _persist_job(job: JobRecord) -> None:
     )
 
 
+def _memory_job(slug: str, job_id: str, client_id: str) -> JobRecord:
+    job = _jobs.get(job_id)
+    if job is None or job.client_id != client_id or job.slug != slug:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+
 @router.get("/context")
-def get_context(slug: str) -> dict:
-    project = _get_project(slug)
+def get_context(slug: str, client_id: str = Depends(get_current_client_id)) -> dict:
+    project = _get_project(slug, client_id)
     ctx = build_optimizer_context(project)
     ctx["segmentation"] = segmentation_payload(project)
-    ctx["scenarios"] = ScenarioStore(slug).list_scenarios()
+    ctx["scenarios"] = ScenarioStore(slug, client_id).list_scenarios()
     return ctx
 
 
@@ -509,7 +519,7 @@ def _brand_summary_payload(
     df = project.results
 
     brand_skus = _brand_skus(project, group_type, brand)
-    cost_overrides = load_unit_cost_overrides(slug)
+    cost_overrides = load_unit_cost_overrides(slug, project.client_id)
     products_by_name = {p.name: p for p in project.doc.products} if project.doc else {}
 
     skus_count = 0
@@ -576,10 +586,12 @@ def get_brand_summary(
     member: str | None = None,
     filters: str | None = None,
     base_scenario: str | None = None,
+    client_id: str = Depends(get_current_client_id),
 ) -> dict:
     filt = _parse_filters_json(filters, assignment_key, member)
     project = _prepare_optimizer_project(
         slug,
+        client_id=client_id,
         assignment_key=assignment_key,
         member=member,
         filters=filt or None,
@@ -598,11 +610,13 @@ def get_brand_summaries(
     member: str | None = None,
     filters: str | None = None,
     base_scenario: str | None = None,
+    client_id: str = Depends(get_current_client_id),
 ) -> dict:
     """All brand SKU lists from a single study load (avoids N× initialize() on the optimizer page)."""
     filt = _parse_filters_json(filters, assignment_key, member)
     project = _prepare_optimizer_project(
         slug,
+        client_id=client_id,
         assignment_key=assignment_key,
         member=member,
         filters=filt or None,
@@ -633,10 +647,12 @@ def get_bounds(
     member: str | None = None,
     filters: str | None = None,
     base_scenario: str | None = None,
+    client_id: str = Depends(get_current_client_id),
 ) -> list[dict]:
     filt = _parse_filters_json(filters, assignment_key, member)
     project = _prepare_optimizer_project(
         slug,
+        client_id=client_id,
         assignment_key=assignment_key,
         member=member,
         filters=filt or None,
@@ -659,7 +675,7 @@ def get_bounds(
             price_by_name[name] = raw
 
     products_by_name = {p.name: p for p in doc.products}
-    cost_overrides = load_unit_cost_overrides(slug)
+    cost_overrides = load_unit_cost_overrides(slug, project.client_id)
     sku_rows = []
     for sku in brand_skus:
         p = products_by_name.get(sku)
@@ -682,10 +698,15 @@ def get_bounds(
 
 
 @router.post("/corridor-preview")
-def post_corridor_preview(slug: str, body: CorridorPreviewRequest) -> dict:
+def post_corridor_preview(
+    slug: str,
+    body: CorridorPreviewRequest,
+    client_id: str = Depends(get_current_client_id),
+) -> dict:
     """Sweep focus reference SKU price vs anchor; return contribution/volume curves + bounds."""
     project = _prepare_optimizer_project(
         slug,
+        client_id=client_id,
         assignment_key=body.assignment_key,
         member=body.member,
         filters=body.filters,
@@ -721,9 +742,12 @@ def post_corridor_preview(slug: str, body: CorridorPreviewRequest) -> dict:
 
 
 def _run_job(job: JobRecord, req: RunOptimizerRequest) -> None:
+    from api.context import current_client_id
+
+    context_token = current_client_id.set(job.client_id)
     try:
         setup = _setup_from_request(req)
-        project = _prepare_optimizer_project(job.slug, **setup)
+        project = _prepare_optimizer_project(job.slug, client_id=job.client_id, **setup)
 
         allowed = _standalone_allowed_skus(
             project, [b.sku for b in req.bounds if b.included]
@@ -841,11 +865,19 @@ def _run_job(job: JobRecord, req: RunOptimizerRequest) -> None:
         job.status = "error"
         job.error = str(e)
     finally:
-        _persist_job(job)
+        try:
+            _persist_job(job)
+        finally:
+            current_client_id.reset(context_token)
 
 
 @router.post("/run")
-def run_optimizer(slug: str, body: RunOptimizerRequest) -> dict:
+def run_optimizer(
+    slug: str,
+    body: RunOptimizerRequest,
+    client_id: str = Depends(get_current_client_id),
+) -> dict:
+    ensure_study_access(client_id, slug)
     job_id = uuid.uuid4().hex
 
     bounds = [PriceBound(b.sku, b.base_price, b.lo, b.hi, b.cost) for b in body.bounds if b.included]
@@ -855,6 +887,7 @@ def run_optimizer(slug: str, body: RunOptimizerRequest) -> dict:
     job = JobRecord(
         job_id=job_id,
         slug=slug,
+        client_id=client_id,
         status="running",
         estimated_evals=est_evals,
         request=body,
@@ -871,16 +904,17 @@ def run_optimizer(slug: str, body: RunOptimizerRequest) -> dict:
 
 
 @router.get("/jobs/{job_id}")
-def get_job(slug: str, job_id: str) -> dict:
-    job = _jobs.get(job_id)
-    if not job:
+def get_job(slug: str, job_id: str, client_id: str = Depends(get_current_client_id)) -> dict:
+    if job_id not in _jobs:
         from db.repository import OptimizerJobRepository
 
-        row = OptimizerJobRepository().get(job_id)
-        if not row:
+        row = OptimizerJobRepository().get(job_id, client_id)
+        if not row or row.get("slug") != slug:
             raise HTTPException(status_code=404, detail="Job not found")
+        row.pop("slug", None)
         return {**row, "result": None}
 
+    job = _memory_job(slug, job_id, client_id)
     payload = {
         "status": job.status,
         "evals": job.evals,
@@ -891,14 +925,14 @@ def get_job(slug: str, job_id: str) -> dict:
     }
 
     if job.status == "done" and job.result and job.request:
-        payload["result"] = _build_result_payload(slug, job.result, job.request)
+        payload["result"] = _build_result_payload(slug, job.result, job.request, client_id)
     return payload
 
 
 @router.post("/jobs/{job_id}/cancel")
-def cancel_job(slug: str, job_id: str) -> dict:
-    job = _jobs.get(job_id)
-    if job and job.status == "running":
+def cancel_job(slug: str, job_id: str, client_id: str = Depends(get_current_client_id)) -> dict:
+    job = _memory_job(slug, job_id, client_id)
+    if job.status == "running":
         job.cancel_event.set()
         job.status = "cancelled"
         _persist_job(job)
@@ -906,15 +940,22 @@ def cancel_job(slug: str, job_id: str) -> dict:
 
 
 @router.post("/jobs/{job_id}/save-scenario")
-def save_scenario(slug: str, job_id: str, body: SaveOptimizerScenarioRequest) -> dict:
-    job = _jobs.get(job_id)
-    if not job or job.status != "done" or not job.result or not job.request:
+def save_scenario(
+    slug: str,
+    job_id: str,
+    body: SaveOptimizerScenarioRequest,
+    client_id: str = Depends(get_current_client_id),
+) -> dict:
+    job = _memory_job(slug, job_id, client_id)
+    if job.status != "done" or not job.result or not job.request:
         raise HTTPException(status_code=400, detail="Job not completed")
 
-    project = _prepare_optimizer_project(slug, **_setup_from_request(job.request))
+    project = _prepare_optimizer_project(
+        slug, client_id=client_id, **_setup_from_request(job.request)
+    )
     _apply_optimal_prices(project, job.result.prices)
 
-    store = ScenarioStore(slug)
+    store = ScenarioStore(slug, client_id)
     name = body.name.strip() or store.next_optimization_result_name()
     scenario = project.capture_scenario(name, body.description)
     store.save(scenario)
@@ -922,12 +963,16 @@ def save_scenario(slug: str, job_id: str, body: SaveOptimizerScenarioRequest) ->
 
 
 @router.post("/jobs/{job_id}/export")
-def export_results(slug: str, job_id: str) -> StreamingResponse:
-    job = _jobs.get(job_id)
-    if not job or job.status != "done" or not job.result or not job.request:
+def export_results(
+    slug: str,
+    job_id: str,
+    client_id: str = Depends(get_current_client_id),
+) -> StreamingResponse:
+    job = _memory_job(slug, job_id, client_id)
+    if job.status != "done" or not job.result or not job.request:
         raise HTTPException(status_code=400, detail="Job not completed")
 
-    result_payload = _build_result_payload(slug, job.result, job.request)
+    result_payload = _build_result_payload(slug, job.result, job.request, client_id)
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow([

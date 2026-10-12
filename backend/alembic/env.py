@@ -18,7 +18,9 @@ from db.models import Base  # noqa: E402
 
 config = context.config
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # Keep Uvicorn's loggers. fileConfig() otherwise disables them and the
+    # terminal looks frozen after the Alembic lines, even though the server is up.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 config.set_main_option("sqlalchemy.url", DATABASE_URL)
 

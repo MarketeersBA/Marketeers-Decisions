@@ -210,7 +210,7 @@ def corridor_preview(
     overrides = (
         cost_overrides
         if cost_overrides is not None
-        else load_unit_cost_overrides(project.slug)
+        else load_unit_cost_overrides(project.slug, project.client_id)
     )
     costs = {
         sku: resolve_unit_cost(

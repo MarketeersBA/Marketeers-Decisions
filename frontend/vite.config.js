@@ -8,10 +8,12 @@ export default defineConfig(function (_a) {
     return {
         plugins: [react()],
         server: {
+            host: true,
             port: 5173,
+            strictPort: true,
             proxy: {
                 "/api": {
-                    target: "http://localhost:".concat(apiPort),
+                    target: "http://127.0.0.1:".concat(apiPort),
                     changeOrigin: true,
                 },
             },

@@ -6,18 +6,29 @@ from dataclasses import asdict
 from io import BytesIO
 import uuid
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
+from api.deps import get_current_client_id
 from data.excel_importer import ExcelImportError, import_design_sheet, import_hbu_sheet
 
 router = APIRouter(prefix="/api/wizard", tags=["wizard"])
 
-# In-memory store: wizard_id -> {"doc": StudyDocument, "hbu": DataFrame}
+# In-memory store: wizard_id -> {"doc": StudyDocument, "hbu": DataFrame, "client_id": str}
 wizard_sessions: dict[str, dict] = {}
 
 
+def _wizard_for_client(wizard_id: str, client_id: str) -> dict:
+    session = wizard_sessions.get(wizard_id)
+    if session is None or session.get("client_id") != client_id:
+        raise HTTPException(status_code=404, detail="Wizard session not found or expired.")
+    return session
+
+
 @router.post("/design")
-async def upload_design(file: UploadFile = File(...)) -> dict:
+async def upload_design(
+    file: UploadFile = File(...),
+    client_id: str = Depends(get_current_client_id),
+) -> dict:
     if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls")):
         raise HTTPException(
             status_code=400,
@@ -33,6 +44,7 @@ async def upload_design(file: UploadFile = File(...)) -> dict:
     wizard_sessions[wizard_id] = {
         "doc": doc,
         "hbu": None,
+        "client_id": client_id,
     }
 
     return {
@@ -49,9 +61,9 @@ async def upload_design(file: UploadFile = File(...)) -> dict:
 async def upload_hbu(
     wizard_id: str = Form(...),
     file: UploadFile = File(...),
+    client_id: str = Depends(get_current_client_id),
 ) -> dict:
-    if wizard_id not in wizard_sessions:
-        raise HTTPException(status_code=404, detail="Wizard session not found or expired.")
+    _wizard_for_client(wizard_id, client_id)
 
     if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls")):
         raise HTTPException(

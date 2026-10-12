@@ -3,7 +3,11 @@ import { createBrowserRouter, Navigate, Outlet, useLocation, useParams, useSearc
 
 import { PageLoading } from "./components/PageLoading";
 import { PageActiveProvider } from "./hooks/usePageActive";
+import { useAuth } from "./auth/AuthProvider";
 import { HomePage } from "./pages/HomePage";
+import { LoginPage } from "./pages/LoginPage";
+import { SignupPage } from "./pages/SignupPage";
+import { ConfirmPage } from "./pages/ConfirmPage";
 import { DataHubPage } from "./pages/DataHubPage";
 import { WizardPage } from "./pages/WizardPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -22,6 +26,13 @@ const SESSION_ROUTES = new Set([
   "/price-pack-architecture",
   "/assortment",
 ]);
+
+function RequireAuth() {
+  const { ready, mode, signedIn } = useAuth();
+  if (!ready) return <PageLoading label="Checking sign-in…" />;
+  if ((mode === "cognito" || mode === "mock") && !signedIn) return <Navigate to="/login" replace />;
+  return <Outlet />;
+}
 
 function RequireSession() {
   const { session, restoring } = useSession();
@@ -121,6 +132,12 @@ function LegacyCompareRedirect() {
 }
 
 export const router = createBrowserRouter([
+  { path: "/login", element: <LoginPage /> },
+  { path: "/signup", element: <SignupPage /> },
+  { path: "/confirm", element: <ConfirmPage /> },
+  {
+    element: <RequireAuth />,
+    children: [
   {
     path: "/",
     element: <AppShell />,
@@ -146,6 +163,8 @@ export const router = createBrowserRouter([
       { path: "studies/:slug/compare", element: <LegacyCompareRedirect /> },
       { path: "studies/:slug/analytics", element: <AnalyticsPage /> },
       { path: "settings", element: <SettingsPage /> },
+    ],
+  },
     ],
   },
 ]);

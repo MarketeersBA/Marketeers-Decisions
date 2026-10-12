@@ -142,7 +142,7 @@ async def replace_study_design_source(
 
     doc = merge_design_replace(existing, imported, file.filename or "")
     persist_study_document(slug, doc, client_id)
-    session_manager.reload_study_for_slug(slug)
+    session_manager.reload_study_for_slug(client_id, slug)
     return _data_sources_payload(doc)
 
 
@@ -166,7 +166,7 @@ async def replace_study_hbu_source(
     doc = apply_hbu_replace(doc, file.filename or "", len(hbu_df))
     persist_study_document(slug, doc, client_id)
     persist_hbu_dataframe(slug, hbu_df, client_id)
-    session_manager.reload_study_for_slug(slug)
+    session_manager.reload_study_for_slug(client_id, slug)
     return _data_sources_payload(doc)
 
 
@@ -191,6 +191,7 @@ def patch_study_meta(
         doc.meta.size_unit_label = body.size_unit_label.strip()
     persist_study_document(slug, doc, client_id)
     session_manager.sync_study_display_meta(
+        client_id,
         slug,
         price_currency_symbol=doc.meta.price_currency_symbol,
         size_unit_label=doc.meta.size_unit_label,
@@ -266,9 +267,9 @@ def delete_study(slug: str, client_id: str = Depends(get_current_client_id)) -> 
 def create_study(body: CreateStudyRequest, client_id: str = Depends(get_current_client_id)) -> dict:
     from api.routes.wizard import wizard_sessions
 
-    if body.wizard_id not in wizard_sessions:
+    session = wizard_sessions.get(body.wizard_id)
+    if session is None or session.get("client_id") != client_id:
         raise HTTPException(status_code=404, detail="Wizard session not found or expired.")
-    session = wizard_sessions[body.wizard_id]
     doc = session["doc"]
     hbu_df = session["hbu"]
     if doc is None or hbu_df is None:

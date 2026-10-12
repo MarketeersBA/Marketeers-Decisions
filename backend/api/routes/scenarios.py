@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 
+from api.deps import get_current_client_id
 from api.schemas import CompareRequest, ReorderScenariosRequest, SaveScenarioRequest
 from api.study_access import require_study
 from api.sessions import session_manager
@@ -17,23 +18,29 @@ router = APIRouter(prefix="/api/studies", tags=["scenarios"])
 
 
 @router.get("/{slug}/scenarios")
-def list_scenarios(slug: str = Depends(require_study)) -> list[dict]:
-    store = ScenarioStore(slug)
+def list_scenarios(
+    slug: str = Depends(require_study),
+    client_id: str = Depends(get_current_client_id),
+) -> list[dict]:
+    store = ScenarioStore(slug, client_id)
     return store.list_scenarios()
 
 
 @router.post("/{slug}/scenarios/seed-base")
-def seed_base_scenario(slug: str = Depends(require_study)) -> dict:
+def seed_base_scenario(
+    slug: str = Depends(require_study),
+    client_id: str = Depends(get_current_client_id),
+) -> dict:
     """Persist a 'Base' scenario from the study's default product state (no session required)."""
     try:
-        project = ProjectCore(slug)
+        project = ProjectCore(slug, client_id=client_id)
         project.initialize()
     except Exception as exc:
         raise HTTPException(
             status_code=404, detail=f"Study not found or failed to load: {slug}"
         ) from exc
 
-    store = ScenarioStore(slug)
+    store = ScenarioStore(slug, client_id)
     name = "Base"
     if store.exists(name):
         return {"ok": True, "name": name, "created": False}
@@ -45,9 +52,13 @@ def seed_base_scenario(slug: str = Depends(require_study)) -> dict:
 
 
 @router.post("/{slug}/scenarios")
-def save_scenario(body: SaveScenarioRequest, slug: str = Depends(require_study)) -> dict:
+def save_scenario(
+    body: SaveScenarioRequest,
+    slug: str = Depends(require_study),
+    client_id: str = Depends(get_current_client_id),
+) -> dict:
     try:
-        session_slug = session_manager.get_slug(body.session_id)
+        session_slug = session_manager.get_slug(body.session_id, client_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Session not found or expired") from exc
     if session_slug != slug:
@@ -62,16 +73,20 @@ def save_scenario(body: SaveScenarioRequest, slug: str = Depends(require_study))
             ),
         )
 
-    project = session_manager.get(body.session_id)
+    project = session_manager.get(body.session_id, client_id)
     scenario = project.capture_scenario(body.name, body.description, False)
-    store = ScenarioStore(slug)
+    store = ScenarioStore(slug, client_id)
     store.save(scenario)
     return {"ok": True, "name": body.name}
 
 
 @router.patch("/{slug}/scenarios/order")
-def reorder_scenarios(body: ReorderScenariosRequest, slug: str = Depends(require_study)) -> dict:
-    store = ScenarioStore(slug)
+def reorder_scenarios(
+    body: ReorderScenariosRequest,
+    slug: str = Depends(require_study),
+    client_id: str = Depends(get_current_client_id),
+) -> dict:
+    store = ScenarioStore(slug, client_id)
     try:
         ordered = store.reorder(body.order)
     except KeyError as exc:
@@ -80,7 +95,10 @@ def reorder_scenarios(body: ReorderScenariosRequest, slug: str = Depends(require
 
 
 @router.post("/{slug}/scenarios/import/preview")
-async def preview_import(slug: str = Depends(require_study), file: UploadFile = File(...)) -> dict:
+async def preview_import(
+    slug: str = Depends(require_study),
+    file: UploadFile = File(...),
+) -> dict:
     if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls")):
         raise HTTPException(status_code=400, detail="Upload an Excel file (.xlsx)")
     content = await file.read()
@@ -93,6 +111,7 @@ async def import_scenarios(
     slug: str = Depends(require_study),
     file: UploadFile = File(...),
     names: str = Form(""),
+    client_id: str = Depends(get_current_client_id),
 ) -> dict:
     if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls")):
         raise HTTPException(status_code=400, detail="Upload an Excel file (.xlsx)")
@@ -101,14 +120,18 @@ async def import_scenarios(
     scenarios = import_scenarios_from_excel(content, names=selected)
     if not scenarios:
         raise HTTPException(status_code=400, detail="No valid scenario sheets found")
-    store = ScenarioStore(slug)
+    store = ScenarioStore(slug, client_id)
     count = store.import_many(scenarios)
     return {"ok": True, "imported": count, "names": [s.name for s in scenarios]}
 
 
 @router.delete("/{slug}/scenarios/{name}")
-def delete_scenario(name: str, slug: str = Depends(require_study)) -> dict:
-    store = ScenarioStore(slug)
+def delete_scenario(
+    name: str,
+    slug: str = Depends(require_study),
+    client_id: str = Depends(get_current_client_id),
+) -> dict:
+    store = ScenarioStore(slug, client_id)
     if not store.exists(name):
         raise HTTPException(status_code=404, detail=f"Scenario not found: {name}")
     store.delete(name)
@@ -116,12 +139,16 @@ def delete_scenario(name: str, slug: str = Depends(require_study)) -> dict:
 
 
 @router.post("/{slug}/compare")
-def compare_scenarios(body: CompareRequest, slug: str = Depends(require_study)) -> dict:
+def compare_scenarios(
+    body: CompareRequest,
+    slug: str = Depends(require_study),
+    client_id: str = Depends(get_current_client_id),
+) -> dict:
     from api.serializers import dataframe_to_records, group_rows
     import pandas as pd
 
     try:
-        base_project = ProjectCore(slug)
+        base_project = ProjectCore(slug, client_id=client_id)
         base_project.initialize()
     except Exception as exc:
         raise HTTPException(
@@ -132,14 +159,14 @@ def compare_scenarios(body: CompareRequest, slug: str = Depends(require_study)) 
     base_project.find_predicted_shares()
 
     scenarios_data = {}
-    store = ScenarioStore(slug)
+    store = ScenarioStore(slug, client_id)
 
     for name in body.scenarios:
         if not store.exists(name):
             raise HTTPException(status_code=404, detail=f"Scenario not found: {name}")
         scenario = store.load(name)
 
-        project = ProjectCore(slug)
+        project = ProjectCore(slug, client_id=client_id)
         project.initialize()
         project.apply_scenario(scenario)
         project.find_predicted_shares()
@@ -168,12 +195,16 @@ def compare_scenarios(body: CompareRequest, slug: str = Depends(require_study)) 
 
 
 @router.post("/{slug}/compare/export")
-def export_comparison(body: CompareRequest, slug: str = Depends(require_study)) -> Response:
+def export_comparison(
+    body: CompareRequest,
+    slug: str = Depends(require_study),
+    client_id: str = Depends(get_current_client_id),
+) -> Response:
     import pandas as pd
 
-    store = ScenarioStore(slug)
+    store = ScenarioStore(slug, client_id)
     try:
-        base_project = ProjectCore(slug)
+        base_project = ProjectCore(slug, client_id=client_id)
         base_project.initialize()
     except Exception as exc:
         raise HTTPException(
@@ -193,7 +224,7 @@ def export_comparison(body: CompareRequest, slug: str = Depends(require_study)) 
             raise HTTPException(status_code=404, detail=f"Scenario not found: {scenario_name}")
         scenario = store.load(scenario_name)
 
-        project = ProjectCore(slug)
+        project = ProjectCore(slug, client_id=client_id)
         project.initialize()
         project.apply_scenario(scenario)
         project.find_predicted_shares()

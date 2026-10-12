@@ -81,7 +81,7 @@ def test_optimizer_processes_bounds_in_size_order() -> None:
         algorithm="coordinate_ascent",
         run_global=False,
     )
-    job = JobRecord(job_id="test", slug="test", status="running")
+    job = JobRecord(job_id="test", slug="test", client_id="local-dev", status="running")
     processed: list[str] = []
 
     def capture_order(_project, spec, on_eval=None):

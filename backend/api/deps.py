@@ -1,11 +1,11 @@
-"""FastAPI dependencies for tenancy and auth (Phase 1: dev client only)."""
+"""FastAPI dependencies for tenancy and auth."""
 
 from __future__ import annotations
 
-from fastapi import Request
+from fastapi import HTTPException, Request
 
+import config
 from api.context import current_client_id
-from config import MARKET_SIM_AUTH, MARKET_SIM_DEV_CLIENT_ID
 
 
 def resolve_client_id() -> str:
@@ -13,10 +13,15 @@ def resolve_client_id() -> str:
     cid = current_client_id.get()
     if cid:
         return cid
-    if MARKET_SIM_AUTH == "dev":
-        return MARKET_SIM_DEV_CLIENT_ID
-    raise RuntimeError("No client context; configure MARKET_SIM_AUTH=dev or set current_client_id")
+    if config.MARKET_SIM_AUTH == "dev":
+        return config.MARKET_SIM_DEV_CLIENT_ID
+    raise RuntimeError("No client context; authenticate or set MARKET_SIM_AUTH=dev")
 
 
 async def get_current_client_id(request: Request) -> str:  # noqa: ARG001
-    return resolve_client_id()
+    cid = current_client_id.get()
+    if cid:
+        return cid
+    if config.MARKET_SIM_AUTH == "dev":
+        return config.MARKET_SIM_DEV_CLIENT_ID
+    raise HTTPException(status_code=401, detail="Not authenticated")

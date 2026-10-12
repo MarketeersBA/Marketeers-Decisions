@@ -81,16 +81,17 @@ def apply_segment_filters(project: "ProjectCore", filters: list[tuple[str, str]]
 def prepare_analytics_project(
     slug: str,
     *,
+    client_id: str | None = None,
     filters: list[tuple[str, str]] | None = None,
     base_scenario: str | None = None,
 ) -> "ProjectCore":
     from data.scenario_store import ScenarioStore
     from model.project_core import ProjectCore
 
-    project = ProjectCore(slug)
+    project = ProjectCore(slug, client_id=client_id)
     project.initialize()
     if base_scenario:
-        store = ScenarioStore(slug)
+        store = ScenarioStore(slug, project.client_id)
         scenario = store.load(base_scenario)
         project.apply_scenario(scenario)
     else:

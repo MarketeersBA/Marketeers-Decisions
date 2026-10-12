@@ -436,6 +436,20 @@
   z-index: 70;
 }
 
+.sidebar-signout {
+  margin: 12px 16px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--sidebar-line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--sidebar-text);
+  text-align: left;
+}
+
+.sidebar-signout:hover {
+  background: var(--sidebar-hover);
+}
+
 .page-outlet {
   flex: 1;
   min-width: 0;

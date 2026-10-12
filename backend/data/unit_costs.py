@@ -34,9 +34,9 @@ def mock_unit_cost(
     return round(base_price * r, 3)
 
 
-def load_unit_cost_overrides(slug: str) -> dict[str, float]:
-    """Load optional per-SKU costs from studies/<slug>/unit_costs.csv (SKU, Unit Cost)."""
-    path = study_folder(slug) / "unit_costs.csv"
+def load_unit_cost_overrides(slug: str, client_id: str | None = None) -> dict[str, float]:
+    """Load optional per-SKU costs from the tenant study folder (SKU, Unit Cost)."""
+    path = study_folder(slug, client_id) / "unit_costs.csv"
     if not path.is_file():
         return {}
     try:

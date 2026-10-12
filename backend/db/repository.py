@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 
 from config import slugify
 from db.models import ClientRow, OptimizerJobRow, StudyRow, new_uuid
@@ -172,6 +173,26 @@ class StudyRepository:
         if session.get(ClientRow, client_id) is None:
             session.add(ClientRow(id=client_id, email=None))
 
+    def get_or_create_client(self, cognito_sub: str, email: str | None) -> str:
+        """Return the tenant id for a Cognito subject, creating the row on first login."""
+        with session_scope() as session:
+            row = session.scalar(select(ClientRow).where(ClientRow.cognito_sub == cognito_sub))
+            if row:
+                if email and row.email != email:
+                    row.email = email
+                return row.id
+            client_id = new_uuid()
+            session.add(ClientRow(id=client_id, email=email, cognito_sub=cognito_sub))
+            try:
+                session.flush()
+            except IntegrityError:
+                session.rollback()
+                row = session.scalar(select(ClientRow).where(ClientRow.cognito_sub == cognito_sub))
+                if row is None:
+                    raise
+                return row.id
+            return client_id
+
 
 class OptimizerJobRepository:
     def upsert(
@@ -204,17 +225,19 @@ class OptimizerJobRepository:
             row.payload = payload
             row.updated_at = datetime.now(timezone.utc)
 
-    def get(self, job_id: str) -> dict | None:
+    def get(self, job_id: str, client_id: str) -> dict | None:
         with session_scope() as session:
             row = session.get(OptimizerJobRow, job_id)
-            if not row:
+            if not row or row.client_id != client_id:
                 return None
+            study = session.get(StudyRow, row.study_id)
             return {
                 "status": row.status,
                 "evals": row.evals,
                 "estimated_evals": row.estimated_evals,
                 "best_obj": row.best_obj,
                 "error": row.error,
+                "slug": study.slug if study else None,
             }
 
     def study_id_for_slug(self, client_id: str, slug: str) -> str | None:

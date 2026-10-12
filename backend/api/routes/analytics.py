@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from api.deps import get_current_client_id
 from api.study_access import require_study
 from model.analytics import (
     conditional_attribute_elasticity,
@@ -55,6 +56,7 @@ def _parse_filters(
 def get_analytics(
     analysis_type: str,
     slug: str = Depends(require_study),
+    client_id: str = Depends(get_current_client_id),
     base_scenario: str | None = None,
     assignment_key: str | None = None,
     member: str | None = None,
@@ -90,7 +92,9 @@ def get_analytics(
         raise HTTPException(status_code=404, detail=f"Unknown analysis type: {analysis_type}")
 
     seg_filters = _parse_filters(filters, assignment_key, member)
-    project = prepare_analytics_project(slug, filters=seg_filters, base_scenario=base_scenario)
+    project = prepare_analytics_project(
+        slug, client_id=client_id, filters=seg_filters, base_scenario=base_scenario
+    )
 
     if atype == "som-sop":
         data = som_vs_sop(project)

@@ -4,6 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Market Simulator</title>
+    <script>
+      // amazon-cognito-identity-js expects Node's global.
+      if (typeof globalThis.global === "undefined") globalThis.global = globalThis;
+    </script>
   </head>
   <body>
     <div id="root"></div>

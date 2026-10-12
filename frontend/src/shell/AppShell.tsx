@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 
+import { useAuth } from "../auth/AuthProvider";
 import { Sidebar } from "./Sidebar";
 import { ContextBar } from "./ContextBar";
 import "./shell.css";
@@ -26,10 +27,15 @@ export function AppShell() {
   }, [collapsed]);
 
   const toggleSidebar = () => setCollapsed((v) => !v);
+  const { mode, signOut } = useAuth();
 
   return (
     <div className={`shell${collapsed ? " sidebar-collapsed" : ""}`}>
-      <Sidebar collapsed={collapsed} onToggle={toggleSidebar} />
+      <Sidebar
+        collapsed={collapsed}
+        onToggle={toggleSidebar}
+        onSignOut={mode === "dev" ? undefined : signOut}
+      />
       <div className="workspace">
         <ContextBar />
         <main className="page-outlet">

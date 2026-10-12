@@ -52,9 +52,10 @@ class ScenarioData:
 class ScenarioStore:
     INDEX_FILE = "index.json"
 
-    def __init__(self, study_slug: str) -> None:
+    def __init__(self, study_slug: str, client_id: str | None = None) -> None:
         self.study_slug = study_slug
-        self.root = scenarios_dir(study_slug)
+        self.client_id = client_id
+        self.root = scenarios_dir(study_slug, client_id)
 
     def _scenario_path(self, name: str) -> Path:
         return self.root / f"{_safe_filename(name)}.json"

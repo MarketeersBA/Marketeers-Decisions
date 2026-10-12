@@ -13,19 +13,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from config import ensure_directories
+from config import APP_ENV, MARKET_SIM_CORS_ORIGINS, ensure_directories
 from api.middleware import ClientContextMiddleware
-from api.routes import analytics, optimizer, scenarios, sessions, studies, validation, wizard
+from api.routes import analytics, auth, optimizer, scenarios, sessions, studies, validation, wizard
 from db.bootstrap import init_db
 
 
-# Vite dev origins allowed during development.
-DEV_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "*",  # tighten to your Vercel URL once you have it
-
-]
+def cors_origins() -> list[str]:
+    """Local Vite in development; explicit origins otherwise. Never a wildcard."""
+    origins: list[str] = []
+    if APP_ENV == "development":
+        origins.extend(["http://localhost:5173", "http://127.0.0.1:5173"])
+    for origin in MARKET_SIM_CORS_ORIGINS.split(","):
+        cleaned = origin.strip()
+        if cleaned and cleaned != "*" and cleaned not in origins:
+            origins.append(cleaned)
+    return origins
 
 # Built locally: scripts/build_spa.ps1 → api/spa_dist (bundled in the wheel)
 FRONTEND_DIST = Path(__file__).resolve().parent / "spa_dist"
@@ -39,7 +42,7 @@ def create_app() -> FastAPI:
     app.add_middleware(ClientContextMiddleware)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=DEV_ORIGINS,
+        allow_origins=cors_origins(),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -49,6 +52,7 @@ def create_app() -> FastAPI:
     def health() -> dict:
         return {"status": "ok"}
 
+    app.include_router(auth.router)
     app.include_router(studies.router)
     app.include_router(sessions.router)
     app.include_router(scenarios.router)
