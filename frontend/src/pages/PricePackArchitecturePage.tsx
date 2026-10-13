@@ -14,7 +14,7 @@ import "./pages.css";
 import "./optimizer.css";
 import "./price-pack-architecture.css";
 
-type Objective = "Revenue" | "Share" | "Margin";
+type Objective = "ValueShare" | "Share" | "Margin";
 
 function objectiveToBackend(objective: Objective): string {
   if (objective === "Margin") return "margin";
@@ -243,7 +243,7 @@ export function PricePackArchitecturePage() {
   /** Per primary group-type: class names ordered higher → lower on the ladder. */
   const [classOrderByGrouping, setClassOrderByGrouping] = useState<Record<string, string[]>>({});
   const [focusBrand, setFocusBrand] = useState("");
-  const [objective, setObjective] = useState<Objective>("Revenue");
+  const [objective, setObjective] = useState<Objective>("ValueShare");
   const [marginFloor, setMarginFloor] = useState(34);
   const [shareLossLimit, setShareLossLimit] = useState(10);
   const [minClassPremiumPct, setMinClassPremiumPct] = useState<number | "">(0);
@@ -838,7 +838,7 @@ export function PricePackArchitecturePage() {
                 >
                   <option value="Margin">Maximize category contribution margin</option>
                   <option value="Share">Maximize volume</option>
-                  <option value="Revenue">Maximize value share</option>
+                  <option value="ValueShare">Maximize value share</option>
                 </select>
               </label>
               <label className="opt-field">

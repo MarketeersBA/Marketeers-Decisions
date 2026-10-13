@@ -57,7 +57,7 @@ import "./optimizer.css";
  * wired to `/optimizer/{context,brand-summaries,bounds,corridor-preview,run}`.
  */
 
-type Objective = "Revenue" | "Share" | "Margin";
+type Objective = "ValueShare" | "Share" | "Margin";
 
 function objectiveToBackend(objective: Objective): string {
   if (objective === "Margin") return "margin";
@@ -68,7 +68,7 @@ function objectiveToBackend(objective: Objective): string {
 /** Short label for scenario names: volume / value / margin. */
 function objectiveScenarioLabel(objective: Objective): string {
   if (objective === "Share") return "volume";
-  if (objective === "Revenue") return "value";
+  if (objective === "ValueShare") return "value";
   return "margin";
 }
 
@@ -2471,7 +2471,7 @@ export function OptimizerPage() {
                 >
                   <option value="Margin">Maximize contribution margin</option>
                   <option value="Share">Maximize volume</option>
-                  <option value="Revenue">Maximize value share</option>
+                  <option value="ValueShare">Maximize value share</option>
                 </select>
               </label>
 
