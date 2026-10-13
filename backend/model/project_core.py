@@ -363,6 +363,12 @@ class ProjectCore:
                 included[p.name] = p.included
                 prod_overrides = dict(p.new_attributes)
                 prod_overrides["WD"] = p.new_wd
+                for discrete_attr, level_val in p.discrete_levels.items():
+                    prod_overrides[discrete_attr] = level_val
+                if p.new_nos is not None:
+                    prod_overrides["NOS"] = p.new_nos
+                if p.new_tdc is not None:
+                    prod_overrides["TDC"] = p.new_tdc
                 overrides[p.name] = prod_overrides
         return ScenarioData(
             name=name,
