@@ -57,3 +57,10 @@ class LocalStorageBackend:
         root = self.study_root_path(client_id, slug)
         if root.exists():
             shutil.rmtree(root)
+
+    def put_study_file(self, client_id: str, slug: str, rel_path: str) -> None:
+        """No-op for local storage; file is already written in place."""
+
+    def delete_study_file(self, client_id: str, slug: str, rel_path: str) -> None:
+        """No-op for local storage; file is already unlinked in place."""
+

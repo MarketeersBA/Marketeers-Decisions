@@ -11,7 +11,8 @@ _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from config import MOCK_UNIT_COST_RATIO_HI, MOCK_UNIT_COST_RATIO_LO, ensure_directories, study_folder
+from api.deps import resolve_client_id
+from config import MOCK_UNIT_COST_RATIO_HI, MOCK_UNIT_COST_RATIO_LO, ensure_directories, get_storage, study_folder
 from data.unit_costs import mock_cost_ratio, mock_unit_cost
 from model.project_core import ProjectCore
 
@@ -54,13 +55,15 @@ def generate_unit_costs(slug: str, *, skus: list[str] | None = None) -> list[dic
 
 
 def write_unit_costs_csv(slug: str, rows: list[dict[str, float | str]]) -> Path:
-    path = study_folder(slug) / "unit_costs.csv"
+    cid = resolve_client_id()
+    path = study_folder(slug, cid) / "unit_costs.csv"
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=["SKU", "Unit Cost"])
         writer.writeheader()
         for row in rows:
             writer.writerow({"SKU": row["SKU"], "Unit Cost": row["Unit Cost"]})
+    get_storage().put_study_file(cid, slug, "unit_costs.csv")
     return path
 
 

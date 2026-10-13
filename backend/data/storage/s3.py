@@ -38,16 +38,23 @@ class S3StorageBackend:
         prefix = self._prefix(client_id, slug)
         root = self._mirror_root(client_id, slug)
         root.mkdir(parents=True, exist_ok=True)
+        remote_rels: set[str] = set()
         paginator = self._s3.get_paginator("list_objects_v2")
         for page in paginator.paginate(Bucket=self._bucket, Prefix=prefix):
             for obj in page.get("Contents") or []:
                 key = obj["Key"]
                 rel = key[len(prefix) :]
-                if not rel:
+                if not rel or rel.endswith("/"):
                     continue
+                remote_rels.add(rel)
                 dest = root / rel
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 self._s3.download_file(self._bucket, key, str(dest))
+        for path in list(root.rglob("*")):
+            if path.is_file():
+                rel = path.relative_to(root).as_posix()
+                if rel not in remote_rels:
+                    path.unlink(missing_ok=True)
 
     def _upload_tree(self, client_id: str, slug: str) -> None:
         root = self._mirror_root(client_id, slug)
@@ -111,3 +118,17 @@ class S3StorageBackend:
         mirror = self._mirror_root(client_id, slug)
         if mirror.exists():
             shutil.rmtree(mirror)
+
+    def put_study_file(self, client_id: str, slug: str, rel_path: str) -> None:
+        rel = rel_path.replace("\\", "/").lstrip("/")
+        local_path = self._mirror_root(client_id, slug) / rel
+        if not local_path.is_file():
+            raise FileNotFoundError(f"Mirror file not found for upload: {local_path}")
+        key = self._prefix(client_id, slug) + rel
+        self._s3.upload_file(str(local_path), self._bucket, key)
+
+    def delete_study_file(self, client_id: str, slug: str, rel_path: str) -> None:
+        rel = rel_path.replace("\\", "/").lstrip("/")
+        key = self._prefix(client_id, slug) + rel
+        self._s3.delete_object(Bucket=self._bucket, Key=key)
+

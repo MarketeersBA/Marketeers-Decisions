@@ -140,11 +140,12 @@ def validation_series(
     slug: str,
     *,
     metric: str = "company_share",
+    client_id: str | None = None,
 ) -> dict:
     """Build time-ordered chart points for all validation waves on a study."""
     from data.validation_store import ValidationWaveStore
 
-    store = ValidationWaveStore(slug)
+    store = ValidationWaveStore(slug, client_id)
     waves = store.load_all()
     points: list[dict] = []
     latest_wave: ValidationWave | None = None

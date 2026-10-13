@@ -18,17 +18,21 @@ router = APIRouter(prefix="/api/studies", tags=["validation"])
 
 
 @router.get("/{slug}/validation")
-def list_validation_waves(slug: str = Depends(require_study)) -> dict:
-    store = ValidationWaveStore(slug)
+def list_validation_waves(
+    slug: str = Depends(require_study),
+    client_id: str = Depends(get_current_client_id),
+) -> dict:
+    store = ValidationWaveStore(slug, client_id)
     return {"waves": store.list_waves()}
 
 
 @router.get("/{slug}/validation/series")
 def get_validation_series(
     slug: str = Depends(require_study),
+    client_id: str = Depends(get_current_client_id),
     metric: str = Query("company_share", description="company_share (volume)"),
 ) -> dict:
-    return validation_series(slug, metric=metric)
+    return validation_series(slug, metric=metric, client_id=client_id)
 
 
 @router.post("/{slug}/validation/upload")
@@ -45,7 +49,7 @@ async def upload_validation_wave(
         )
     content = await file.read()
     doc, _ = get_storage().load_study(client_id, slug)
-    store = ValidationWaveStore(slug)
+    store = ValidationWaveStore(slug, client_id)
     try:
         wave = import_validation_workbook(
             BytesIO(content),
@@ -79,8 +83,9 @@ async def upload_validation_wave(
 def delete_validation_wave(
     wave_id: str,
     slug: str = Depends(require_study),
+    client_id: str = Depends(get_current_client_id),
 ) -> dict:
-    store = ValidationWaveStore(slug)
+    store = ValidationWaveStore(slug, client_id)
     try:
         store.load(wave_id)
     except FileNotFoundError as exc:

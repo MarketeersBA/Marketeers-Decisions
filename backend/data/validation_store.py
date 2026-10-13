@@ -9,7 +9,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from config import validation_dir
+from api.deps import resolve_client_id
+from config import get_storage, validation_dir
 
 
 @dataclass
@@ -72,9 +73,16 @@ class ValidationWave:
 class ValidationWaveStore:
     INDEX_FILE = "index.json"
 
-    def __init__(self, study_slug: str) -> None:
+    def __init__(self, study_slug: str, client_id: str | None = None) -> None:
         self.study_slug = study_slug
-        self.root = validation_dir(study_slug)
+        self.client_id = client_id or resolve_client_id()
+        self.root = validation_dir(study_slug, self.client_id)
+
+    def _put_file(self, filename: str) -> None:
+        get_storage().put_study_file(self.client_id, self.study_slug, f"validation/{filename}")
+
+    def _delete_file(self, filename: str) -> None:
+        get_storage().delete_study_file(self.client_id, self.study_slug, f"validation/{filename}")
 
     def _wave_path(self, wave_id: str) -> Path:
         return self.root / f"{wave_id}.json"
@@ -89,6 +97,7 @@ class ValidationWaveStore:
     def _save_index(self, entries: list[dict[str, Any]]) -> None:
         with (self.root / self.INDEX_FILE).open("w", encoding="utf-8") as fh:
             json.dump(entries, fh, indent=2)
+        self._put_file(self.INDEX_FILE)
 
     def list_waves(self) -> list[dict[str, Any]]:
         entries = self._load_index()
@@ -102,6 +111,7 @@ class ValidationWaveStore:
         path = self._wave_path(wave.id)
         with path.open("w", encoding="utf-8") as fh:
             json.dump(wave.to_dict(), fh, indent=2)
+        self._put_file(path.name)
         entries = [e for e in self._load_index() if e.get("id") != wave.id]
         entries.append(
             {
@@ -135,10 +145,11 @@ class ValidationWaveStore:
 
     def delete(self, wave_id: str) -> None:
         path = self._wave_path(wave_id)
-        if path.exists():
-            path.unlink()
         entries = [e for e in self._load_index() if e.get("id") != wave_id]
         self._save_index(entries)
+        if path.exists():
+            path.unlink()
+        self._delete_file(path.name)
 
     @staticmethod
     def new_id() -> str:

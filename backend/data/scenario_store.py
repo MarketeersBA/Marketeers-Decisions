@@ -9,7 +9,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from config import scenarios_dir
+from api.deps import resolve_client_id
+from config import get_storage, scenarios_dir
 
 
 def _safe_filename(name: str) -> str:
@@ -54,8 +55,14 @@ class ScenarioStore:
 
     def __init__(self, study_slug: str, client_id: str | None = None) -> None:
         self.study_slug = study_slug
-        self.client_id = client_id
-        self.root = scenarios_dir(study_slug, client_id)
+        self.client_id = client_id or resolve_client_id()
+        self.root = scenarios_dir(study_slug, self.client_id)
+
+    def _put_file(self, filename: str) -> None:
+        get_storage().put_study_file(self.client_id, self.study_slug, f"scenarios/{filename}")
+
+    def _delete_file(self, filename: str) -> None:
+        get_storage().delete_study_file(self.client_id, self.study_slug, f"scenarios/{filename}")
 
     def _scenario_path(self, name: str) -> Path:
         return self.root / f"{_safe_filename(name)}.json"
@@ -70,6 +77,7 @@ class ScenarioStore:
     def _save_index(self, entries: list[dict[str, Any]]) -> None:
         with (self.root / self.INDEX_FILE).open("w", encoding="utf-8") as fh:
             json.dump(entries, fh, indent=2)
+        self._put_file(self.INDEX_FILE)
 
     def _rebuild_index_from_files(self) -> list[dict[str, Any]]:
         """Rebuild index.json from scenario *.json files when index is missing or empty."""
@@ -97,9 +105,9 @@ class ScenarioStore:
         return entries
 
     def list_scenarios(self) -> list[dict[str, Any]]:
-        entries = self._load_index()
-        if entries:
-            return entries
+        index_path = self.root / self.INDEX_FILE
+        if index_path.exists():
+            return self._load_index()
         return self._rebuild_index_from_files()
 
     def next_optimization_result_name(self) -> str:
@@ -116,6 +124,7 @@ class ScenarioStore:
         path = self._scenario_path(scenario.name)
         with path.open("w", encoding="utf-8") as fh:
             json.dump(scenario.to_dict(), fh, indent=2)
+        self._put_file(path.name)
         entries = [e for e in self._load_index() if e.get("name") != scenario.name]
         entries.append(
             {
@@ -143,8 +152,25 @@ class ScenarioStore:
         return reordered
 
     def import_many(self, scenarios: list[ScenarioData]) -> int:
+        if not scenarios:
+            return 0
+        entries = self._load_index()
         for scenario in scenarios:
-            self.save(scenario)
+            path = self._scenario_path(scenario.name)
+            with path.open("w", encoding="utf-8") as fh:
+                json.dump(scenario.to_dict(), fh, indent=2)
+            self._put_file(path.name)
+            entries = [e for e in entries if e.get("name") != scenario.name]
+            entries.append(
+                {
+                    "name": scenario.name,
+                    "description": scenario.description,
+                    "validation": scenario.validation,
+                    "file": path.name,
+                    "created_at": scenario.created_at,
+                }
+            )
+        self._save_index(entries)
         return len(scenarios)
 
     def load(self, name: str) -> ScenarioData:
@@ -156,10 +182,11 @@ class ScenarioStore:
 
     def delete(self, name: str) -> None:
         path = self._scenario_path(name)
-        if path.exists():
-            path.unlink()
         entries = [e for e in self._load_index() if e.get("name") != name]
         self._save_index(entries)
+        if path.exists():
+            path.unlink()
+        self._delete_file(path.name)
 
     def exists(self, name: str) -> bool:
         return self._scenario_path(name).exists()
