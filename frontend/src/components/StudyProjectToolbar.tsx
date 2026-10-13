@@ -78,43 +78,6 @@ export function StudyProjectToolbar({
               {study.name}
             </span>
           )}
-          <div className="studies-row-actions-buttons">
-            <Link
-              className="btn-secondary studies-action-btn"
-              to={`/studies/${study.slug}/scenarios`}
-              onClick={(e) => busy && e.preventDefault()}
-            >
-              Scenarios
-            </Link>
-            {editing ? (
-              <>
-                <button className="btn-primary studies-action-btn" onClick={onSave} disabled={savePending || busy}>
-                  Save
-                </button>
-                <button className="btn-secondary studies-action-btn" onClick={onCancel} disabled={busy}>
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <>
-                <button className="btn-secondary studies-action-btn" onClick={onEdit} disabled={busy}>
-                  Edit
-                </button>
-                {!study.isDefault ? (
-                  <button className="btn-secondary studies-action-btn" onClick={onSetDefault} disabled={busy}>
-                    Set default
-                  </button>
-                ) : null}
-                <button
-                  className="btn-secondary studies-action-btn studies-action-danger"
-                  onClick={onRemove}
-                  disabled={busy}
-                >
-                  Delete
-                </button>
-              </>
-            )}
-          </div>
         </div>
         <StudyTrustFields
           dataPeriod={dataPeriod}
@@ -134,6 +97,45 @@ export function StudyProjectToolbar({
             />
           </div>
         ) : null}
+        <div className="studies-row-actions-buttons study-project-toolbar-actions">
+          {editing ? null : (
+            <Link
+              className="btn-secondary studies-action-btn"
+              to={`/studies/${study.slug}/scenarios`}
+              onClick={(e) => busy && e.preventDefault()}
+            >
+              Scenarios
+            </Link>
+          )}
+          {editing ? (
+            <>
+              <button className="btn-primary studies-action-btn" onClick={onSave} disabled={savePending || busy}>
+                Save
+              </button>
+              <button className="btn-secondary studies-action-btn" onClick={onCancel} disabled={busy}>
+                Cancel
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="btn-primary studies-action-btn" onClick={onEdit} disabled={busy}>
+                Edit
+              </button>
+              {!study.isDefault ? (
+                <button className="btn-secondary studies-action-btn" onClick={onSetDefault} disabled={busy}>
+                  Set default
+                </button>
+              ) : null}
+              <button
+                className="btn-secondary studies-action-btn studies-action-danger"
+                onClick={onRemove}
+                disabled={busy}
+              >
+                Delete
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

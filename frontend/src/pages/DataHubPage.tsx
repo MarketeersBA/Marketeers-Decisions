@@ -55,8 +55,16 @@ export function DataHubPage() {
               <span className="data-hub-change-project-current" dir="auto">
                 {session.study.studyName}
               </span>
-              <span className={`data-hub-change-project-caret${studiesExpanded ? " is-open" : ""}`} aria-hidden>
-                ▾
+              <span className={`model-validation-caret${studiesExpanded ? " is-open" : ""}`} aria-hidden>
+                <svg width="14" height="14" viewBox="0 0 18 18" fill="none">
+                  <path
+                    d="M4.5 7.25 9 11.75 13.5 7.25"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </span>
             </button>
             {studiesExpanded ? (

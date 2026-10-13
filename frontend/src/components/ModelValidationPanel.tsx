@@ -19,8 +19,8 @@ import {
   useValidationWaves,
 } from "../api/hooks";
 
-const PREDICTED_COLOR = "#a67c52";
-const ACTUAL_COLOR = "#2d5a56";
+const PREDICTED_COLOR = "#002d62";
+const ACTUAL_COLOR = "#c41230";
 
 /** Set true to show rebase vs Runner note in the footer (see docs/VALIDATION.md). */
 const SHOW_VALIDATION_REBASE_NOTE = false;
@@ -54,6 +54,7 @@ function uploadErrorMessage(err: unknown): string {
 export function ModelValidationPanel({ slug }: ModelValidationPanelProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [open, setOpen] = useState(true);
 
   const { data: wavesData, isLoading: wavesLoading } = useValidationWaves(slug);
   const { data: seriesData, isLoading: seriesLoading } = useValidationSeries(slug);
@@ -142,11 +143,32 @@ export function ModelValidationPanel({ slug }: ModelValidationPanelProps) {
   return (
     <section className="model-validation-card" aria-labelledby="model-validation-heading">
       <header className="model-validation-header">
-        <h2 id="model-validation-heading" className="model-validation-title">
-          Validation — is the model still predicting reality?
-        </h2>
-        <p className="model-validation-subtitle">{subtitle}</p>
+        <button
+          type="button"
+          className="model-validation-toggle"
+          aria-expanded={open}
+          aria-controls="model-validation-body"
+          onClick={() => setOpen((value) => !value)}
+        >
+          <h2 id="model-validation-heading" className="model-validation-title">
+            Validation — is the model still predicting reality?
+          </h2>
+          <span className={`model-validation-caret${open ? " is-open" : ""}`} aria-hidden>
+            <svg width="14" height="14" viewBox="0 0 18 18" fill="none">
+              <path
+                d="M4.5 7.25 9 11.75 13.5 7.25"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+        </button>
+        {open ? <p className="model-validation-subtitle">{subtitle}</p> : null}
       </header>
+      {open ? (
+      <div id="model-validation-body">
 
       <div className="model-validation-chart-panel">
       <div className="model-validation-chart-outer">
@@ -163,7 +185,7 @@ export function ModelValidationPanel({ slug }: ModelValidationPanelProps) {
           ) : (
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={chartData} margin={{ top: 12, right: 16, left: 0, bottom: 36 }}>
-                <CartesianGrid stroke="#e8e4dc" vertical={false} />
+                <CartesianGrid stroke="#d8dee8" vertical={false} />
                 <XAxis
                   dataKey="waveKey"
                   tick={{ fill: "#6b7280", fontSize: 11 }}
@@ -229,13 +251,13 @@ export function ModelValidationPanel({ slug }: ModelValidationPanelProps) {
                   isAnimationActive={false}
                   dot={{
                     r: 6,
-                    fill: "#faf9f6",
+                    fill: "#ffffff",
                     stroke: ACTUAL_COLOR,
                     strokeWidth: 2,
                   }}
                   activeDot={{
                     r: 9,
-                    fill: "#faf9f6",
+                    fill: "#ffffff",
                     stroke: ACTUAL_COLOR,
                     strokeWidth: 2,
                   }}
@@ -327,7 +349,7 @@ export function ModelValidationPanel({ slug }: ModelValidationPanelProps) {
                         data={brandChartData}
                         margin={{ top: 12, right: 16, left: 0, bottom: 48 }}
                       >
-                        <CartesianGrid stroke="#e8e4dc" vertical={false} />
+                        <CartesianGrid stroke="#d8dee8" vertical={false} />
                         <XAxis
                           dataKey="name"
                           tick={{ fill: "#6b7280", fontSize: 11 }}
@@ -443,6 +465,7 @@ export function ModelValidationPanel({ slug }: ModelValidationPanelProps) {
         <p className="model-validation-muted">Loading validation waves…</p>
       ) : (wavesData?.waves?.length ?? 0) > 0 ? (
         <div className="model-validation-table-wrap">
+          <h3 className="model-validation-table-heading">Uploaded waves</h3>
           <table className="model-validation-waves-table">
             <thead>
               <tr>
@@ -458,14 +481,14 @@ export function ModelValidationPanel({ slug }: ModelValidationPanelProps) {
                   <td>{w.name}</td>
                   <td>{fmtDate(w.validation_date)}</td>
                   <td>{w.source_filename || "—"}</td>
-                  <td>
+                  <td className="model-validation-wave-action">
                     <button
                       type="button"
-                      className="btn-text-danger"
+                      className="btn-secondary studies-action-btn studies-action-danger"
                       disabled={deleteMutation.isPending}
                       onClick={() => deleteMutation.mutate(w.id)}
                     >
-                      Remove
+                      Delete
                     </button>
                   </td>
                 </tr>
@@ -488,6 +511,8 @@ export function ModelValidationPanel({ slug }: ModelValidationPanelProps) {
           </p>
         ) : null}
       </footer>
+      </div>
+      ) : null}
     </section>
   );
 }
