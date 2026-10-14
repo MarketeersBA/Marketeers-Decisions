@@ -194,12 +194,15 @@
 .studies-table tbody tr:not(.studies-actions-row):hover {
   background: #fafbfd;
 }
-.studies-table tbody tr.studies-row-selected {
-  background: var(--highlight-bg);
-  box-shadow: inset 3px 0 0 var(--warn);
+.studies-table tbody tr.studies-row-selected,
+.studies-table tbody tr.studies-row-selected:hover {
+  background: #e8eef6;
 }
 .studies-table tbody tr.studies-row-selected td {
-  border-bottom: none;
+  background: #e8eef6;
+}
+.studies-table tbody tr.studies-row-selected td:first-child {
+  box-shadow: inset 3px 0 0 var(--brand);
 }
 .studies-select-dot {
   display: inline-block;
@@ -352,6 +355,10 @@
   margin: 0 0 10px;
   font-size: 13px;
   color: var(--danger);
+}
+
+.studies-panel > .study-project-toolbar-error {
+  margin: 12px 16px 0;
 }
 
 .study-project-toolbar-edit-fields {
@@ -3474,6 +3481,7 @@
   flex: 1 1 auto;
   min-width: 0;
   min-height: 280px;
+  overflow: hidden;
 }
 
 .model-validation-legend {

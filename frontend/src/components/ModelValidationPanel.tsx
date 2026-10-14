@@ -176,14 +176,14 @@ export function ModelValidationPanel({ slug }: ModelValidationPanelProps) {
           Company share %
         </p>
         <div className="model-validation-chart-wrap">
-          {seriesLoading ? (
+          {seriesLoading && !seriesData ? (
             <p className="model-validation-muted model-validation-chart-empty">Loading chart…</p>
           ) : chartData.length === 0 ? (
             <p className="model-validation-muted model-validation-chart-empty">
               No validation data yet. Upload a workbook to plot predicted vs. actual share by date.
             </p>
           ) : (
-            <ResponsiveContainer width="100%" height={280}>
+            <ResponsiveContainer width="100%" height={280} initialDimension={{ width: 640, height: 280 }}>
               <LineChart data={chartData} margin={{ top: 12, right: 16, left: 0, bottom: 36 }}>
                 <CartesianGrid stroke="#d8dee8" vertical={false} />
                 <XAxis
@@ -344,7 +344,7 @@ export function ModelValidationPanel({ slug }: ModelValidationPanelProps) {
                       Select at least one competitor brand.
                     </p>
                   ) : (
-                    <ResponsiveContainer width="100%" height={280}>
+                    <ResponsiveContainer width="100%" height={280} initialDimension={{ width: 480, height: 280 }}>
                       <BarChart
                         data={brandChartData}
                         margin={{ top: 12, right: 16, left: 0, bottom: 48 }}
@@ -461,7 +461,7 @@ export function ModelValidationPanel({ slug }: ModelValidationPanelProps) {
         {uploadError ? <p className="model-validation-error">{uploadError}</p> : null}
       </div>
 
-      {wavesLoading ? (
+      {wavesLoading && !wavesData ? (
         <p className="model-validation-muted">Loading validation waves…</p>
       ) : (wavesData?.waves?.length ?? 0) > 0 ? (
         <div className="model-validation-table-wrap">

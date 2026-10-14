@@ -38,7 +38,11 @@ export function DataHubPage() {
         <>
           <section className="data-hub-section data-hub-project-row">
             <DataSourcesSection slug={session.slug} />
-            <StudyProjectPanel slug={session.slug} onStudyDeleted={handleStudyDeleted} />
+            <StudyProjectPanel
+              slug={session.slug}
+              onStudyDeleted={handleStudyDeleted}
+              onUnselect={() => setSession(null)}
+            />
           </section>
           <div className="data-hub-section">
             <ModelValidationPanel slug={session.slug} />
@@ -75,6 +79,10 @@ export function DataHubPage() {
                   navigateOnOpen={false}
                   onOpenSuccess={() => setStudiesExpanded(false)}
                   onStudyDeleted={handleStudyDeleted}
+                  onUnselect={() => {
+                    setSession(null);
+                    setStudiesExpanded(false);
+                  }}
                 />
                 <section className="data-hub-section data-hub-upload-in-panel" id="upload-study">
                   <h2 className="data-hub-section-title">Upload study</h2>
@@ -94,7 +102,11 @@ export function DataHubPage() {
             Click a study row to open it. Use the project toolbar for edit, scenarios, display
             units, or delete.
           </p>
-          <StudyManager navigateOnOpen={false} onStudyDeleted={handleStudyDeleted} />
+          <StudyManager
+            navigateOnOpen={false}
+            onStudyDeleted={handleStudyDeleted}
+            onUnselect={() => setSession(null)}
+          />
         </section>
       )}
 

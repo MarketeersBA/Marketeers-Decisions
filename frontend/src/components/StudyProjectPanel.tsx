@@ -1,17 +1,20 @@
 import { useEffect, useState } from "react";
 
 import { useDeleteStudy, useStudies, useUpdateStudy } from "../api/hooks";
-import { useStudyDisplayUnitsSave } from "./StudyDisplayUnitsForm";
 import { defaultDataPeriod, normalizeDataPeriod, normalizeDataSource } from "../lib/studyTrustOptions";
+import { useSession } from "../stores/sessionStore";
+import { useStudyDisplayUnitsSave } from "./StudyDisplayUnitsForm";
 import { StudyProjectToolbar } from "./StudyProjectToolbar";
 
 type StudyProjectPanelProps = {
   slug: string;
   onStudyDeleted?: (slug: string) => void;
+  onUnselect?: () => void;
 };
 
 /** Persistent project actions for the active workspace study. */
-export function StudyProjectPanel({ slug, onStudyDeleted }: StudyProjectPanelProps) {
+export function StudyProjectPanel({ slug, onStudyDeleted, onUnselect }: StudyProjectPanelProps) {
+  const { setSession } = useSession();
   const { data: studies, isLoading } = useStudies();
   const updateStudy = useUpdateStudy();
   const deleteStudy = useDeleteStudy();
@@ -23,6 +26,16 @@ export function StudyProjectPanel({ slug, onStudyDeleted }: StudyProjectPanelPro
 
   const study = studies?.find((s) => s.slug === slug) ?? null;
   const displayUnits = useStudyDisplayUnitsSave(study?.status === "ready" ? slug : undefined);
+  const [syncedSlug, setSyncedSlug] = useState(slug);
+
+  if (study && syncedSlug !== study.slug) {
+    setSyncedSlug(study.slug);
+    setName(study.name);
+    setCompany(study.company);
+    setDataPeriod(normalizeDataPeriod(study.dataPeriod ?? ""));
+    setDataSource(normalizeDataSource(study.dataSource ?? ""));
+    setEditing(false);
+  }
 
   useEffect(() => {
     if (study) {
@@ -71,6 +84,11 @@ export function StudyProjectPanel({ slug, onStudyDeleted }: StudyProjectPanelPro
     updateStudy.mutate({ slug: study.slug, set_default: true });
   };
 
+  const handleUnselect = () => {
+    onUnselect?.();
+    setSession(null);
+  };
+
   return (
     <section className="data-hub-section data-hub-project-panel" aria-label="Active project">
       <StudyProjectToolbar
@@ -99,6 +117,7 @@ export function StudyProjectPanel({ slug, onStudyDeleted }: StudyProjectPanelPro
           displayUnits.reset();
         }}
         onSetDefault={setDefault}
+        onUnselect={handleUnselect}
         onRemove={remove}
       />
     </section>

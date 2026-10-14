@@ -28,6 +28,13 @@ function StudyRow({
     <tr
       className={selected ? "studies-row-selected" : undefined}
       onClick={() => onActivate(study.slug)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onActivate(study.slug);
+        }
+      }}
+      tabIndex={0}
       aria-selected={selected}
       aria-busy={activating}
     >
@@ -54,6 +61,7 @@ type StudyManagerProps = {
   navigateOnOpen?: boolean;
   onOpenSuccess?: () => void;
   onStudyDeleted?: (slug: string) => void;
+  onUnselect?: () => void;
   /** When false, only the study table is shown (toolbar lives elsewhere). */
   showToolbar?: boolean;
 };
@@ -63,13 +71,14 @@ export function StudyManager({
   navigateOnOpen = true,
   onOpenSuccess,
   onStudyDeleted,
+  onUnselect,
   showToolbar = true,
 }: StudyManagerProps) {
   const { data: studies, isLoading, isError, error } = useStudies();
   const loadSession = useLoadSession();
   const updateStudy = useUpdateStudy();
   const deleteStudy = useDeleteStudy();
-  const { setSession } = useSession();
+  const { session, setSession } = useSession();
   const navigate = useNavigate();
   const [toolbarSlug, setToolbarSlug] = useState<string | null>(null);
   const [pendingSlug, setPendingSlug] = useState<string | null>(null);
@@ -79,8 +88,8 @@ export function StudyManager({
   const [company, setCompany] = useState("");
   const [dataPeriod, setDataPeriod] = useState(defaultDataPeriod());
   const [dataSource, setDataSource] = useState<string>(normalizeDataSource(""));
-  const resolvedToolbarSlug = activeSlug ?? toolbarSlug;
-  const highlightSlug = pendingSlug ?? activeSlug ?? toolbarSlug;
+  const resolvedToolbarSlug = activeSlug ?? toolbarSlug ?? (session?.slug ?? null);
+  const highlightSlug = pendingSlug ?? activeSlug ?? toolbarSlug ?? (session?.slug ?? null);
   const toolbarStudy = studies?.find((s) => s.slug === resolvedToolbarSlug) ?? null;
   const displayUnits = useStudyDisplayUnitsSave(
     showToolbar && toolbarStudy?.status === "ready" ? toolbarStudy.slug : undefined,
@@ -110,13 +119,30 @@ export function StudyManager({
     toolbarStudy?.dataSource,
   ]);
 
+  const handleUnselect = () => {
+    setEditing(false);
+    setToolbarSlug(null);
+    setPendingSlug(null);
+    setSession(null);
+    onUnselect?.();
+  };
+
   const activateRow = (slug: string) => {
     if (loadSession.isPending && pendingSlug === slug) return;
-    if (activeSlug === slug && !loadSession.isPending) return;
+
+    const isSelected =
+      slug === highlightSlug ||
+      slug === activeSlug ||
+      slug === toolbarSlug ||
+      (session ? slug === session.slug : false);
+
+    if (isSelected && !loadSession.isPending) {
+      handleUnselect();
+      return;
+    }
 
     setLoadError(null);
     setPendingSlug(slug);
-    setToolbarSlug(slug);
 
     loadSession.mutate(slug, {
       onSuccess: (payload) => {
@@ -185,6 +211,7 @@ export function StudyManager({
         </div>
       ) : (
         <>
+          {loadError ? <p className="study-project-toolbar-error">{loadError}</p> : null}
           {showToolbar && toolbarStudy ? (
             <StudyProjectToolbar
               study={toolbarStudy}
@@ -196,7 +223,7 @@ export function StudyManager({
               busy={loadSession.isPending}
               savePending={updateStudy.isPending || displayUnits.isSavingDisplayUnits}
               displayUnitsDraft={toolbarStudy.status === "ready" ? displayUnits : undefined}
-              loadError={loadError}
+              loadError={null}
               onNameChange={setName}
               onCompanyChange={setCompany}
               onDataPeriodChange={setDataPeriod}
@@ -212,6 +239,7 @@ export function StudyManager({
                 displayUnits.reset();
               }}
               onSetDefault={setDefault}
+              onUnselect={handleUnselect}
               onRemove={remove}
             />
           ) : null}

@@ -88,7 +88,7 @@ function StudyDisplayUnitsBody({
   if (draft.isError) {
     return <p className="error">Could not load display units.</p>;
   }
-  if (draft.isLoading) {
+  if (draft.isLoading && !draft.data) {
     return <p className="studies-display-units-loading">Loading display units…</p>;
   }
 

@@ -24,6 +24,7 @@ type StudyProjectToolbarProps = {
   onCancel: () => void;
   onSetDefault: () => void;
   onRemove: () => void;
+  onUnselect?: () => void;
   displayUnitsDraft?: StudyDisplayUnitsDraft;
 };
 
@@ -46,6 +47,7 @@ export function StudyProjectToolbar({
   onCancel,
   onSetDefault,
   onRemove,
+  onUnselect,
   displayUnitsDraft,
 }: StudyProjectToolbarProps) {
   return (
@@ -124,6 +126,16 @@ export function StudyProjectToolbar({
               {!study.isDefault ? (
                 <button className="btn-secondary studies-action-btn" onClick={onSetDefault} disabled={busy}>
                   Set default
+                </button>
+              ) : null}
+              {onUnselect ? (
+                <button
+                  type="button"
+                  className="btn-secondary studies-action-btn"
+                  onClick={onUnselect}
+                  disabled={busy}
+                >
+                  Unselect
                 </button>
               ) : null}
               <button

@@ -471,6 +471,8 @@
   display: flex;
   flex-direction: column;
   overflow: auto;
+  overflow-anchor: none;
+  scrollbar-gutter: stable;
   padding: 20px 24px;
 }
 
