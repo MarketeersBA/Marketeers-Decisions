@@ -76,10 +76,7 @@ def test_optimizer_processes_bounds_in_size_order() -> None:
         objective="revenue",
         max_iters=1,
         tol_str="0.00001",
-        grid_points=5,
         max_volume_drop_pct=None,
-        algorithm="coordinate_ascent",
-        run_global=False,
     )
     job = JobRecord(job_id="test", slug="test", client_id="local-dev", status="running")
     processed: list[str] = []

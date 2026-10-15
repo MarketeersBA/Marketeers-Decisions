@@ -1,8 +1,8 @@
-# Price Optimizer — Recommended Search Algorithm
+# Price Optimizer — Search Algorithm
 
-Status: proposal
+Status: implemented
 Applies to: Price Optimization page (`POST /api/{slug}/optimizer/run`)
-Scope: replaces the search layer in `backend/model/optimizer.py`. The evaluation
+Solver: `optimize_coordinate_ascent` in `backend/model/optimizer.py`. The evaluation
 core (`FastEvaluator`, `preference_engine`, `share_calculator`, `metrics`) is
 unchanged.
 
@@ -228,9 +228,7 @@ does guarantee and why the remaining gap does not matter in practice.
 
 **Exactness in every single dimension.** Because each step enumerates a SKU's
 *entire* menu rather than performing a line search, the result cannot be trapped
-by a local bump within one dimension. This is strictly stronger than golden
-section (`_gs_max`), which silently assumes each 1-D slice is unimodal — an
-assumption the corridor already violates today.
+by a local bump within one dimension.
 
 **Coordinatewise optimality at convergence.** No change to any single SKU's
 price improves the objective. Every one-SKU deviation has been tested and
@@ -392,13 +390,23 @@ before the user commits.
 
 ---
 
-## 10. Why SLSQP, IPOPT, and trust-constr are not suitable
+## 10. Why other solver classes were considered and rejected
+
+### 10.0 Grid search and differential evolution
+
+**Grid search** (exhaustive enumeration over a fixed price grid) was considered and rejected for multi-SKU runs because the combinatorial cost is exponential in SKU count — see §5.3 for the exact numbers. It remains academically correct for 1–2 SKUs but adds implementation complexity for a case that is already handled efficiently by coordinate ascent with a dense menu.
+
+**Differential evolution** was considered as a global stochastic search to complement coordinate ascent. It was rejected because: (a) it requires continuous or penalty-handled constraints and performs poorly with discrete shelf endings; (b) for the problem sizes here (3–10 SKUs, millisecond evaluations) the population-times-generations evaluation count is comparable to or exceeds coordinate ascent with multi-start; and (c) it provides the same class of probabilistic-global guarantee already covered by multi-start.
+
+Neither is implemented. If systematic CA failures are observed on real studies, the pairwise polish in §9 is the first remedy; grid search for `n ≤ 2` regression tests is the next.
+
+### 10.1 Why SLSQP, IPOPT, and trust-constr are not suitable
 
 These are gradient-based constrained nonlinear programming solvers. They are
 excellent for smooth problems with analytic derivatives, and this problem has
 neither.
 
-### 10.1 The objective is not differentiable
+### 10.2 The objective is not differentiable
 
 Price enters utility by **linear interpolation between calibrated conditional
 price levels** (`_conditional_price_utility_vec` in
@@ -412,7 +420,7 @@ is wrong it shrinks the step, re-evaluates, and stalls. Calibrated levels are
 spaced closely enough within a typical price box that kinks are encountered
 constantly rather than rarely.
 
-### 10.2 There are no analytic gradients, and numerical ones are expensive
+### 10.3 There are no analytic gradients, and numerical ones are expensive
 
 No derivative of the simulator with respect to price is available, so every
 gradient costs `n + 1` full evaluations. With 10 SKUs that is 11 evaluations per
@@ -421,7 +429,7 @@ evaluations — several thousand evaluations in total. That is *more* than the
 2,400 the proposed algorithm needs, with worse robustness. Constraint Jacobians
 add more still.
 
-### 10.3 Part of the decision space is genuinely discrete
+### 10.4 Part of the decision space is genuinely discrete
 
 Shelf endings are not a smooth restriction; they are a finite set. Continuous
 solvers cannot represent them. The only workaround is to solve continuously and
@@ -430,7 +438,7 @@ solution to anything) and can break feasibility (rounding up can violate the
 movement cap; rounding down can violate the margin floor). That is precisely the
 fragile post-processing this design eliminates.
 
-### 10.4 The constraints are not in the required form
+### 10.5 The constraints are not in the required form
 
 These solvers need constraints as smooth functions `g(x) ≥ 0` with derivatives.
 The current implementation enforces feasibility by **rejection** — `_eval`
@@ -444,7 +452,7 @@ full simulator run, and its Jacobian would require `n` more per iteration.
 Under the proposed design this is moot. Those five constraints stop being
 constraints at all, which is a cleaner outcome than making them differentiable.
 
-### 10.5 The guarantee on offer is no better
+### 10.6 The guarantee on offer is no better
 
 SLSQP, IPOPT, and trust-constr are **local** solvers. Without convexity — which
 this problem does not have — they return a local stationary point. That is the
@@ -453,14 +461,14 @@ and it would still need multi-start. Coordinate ascent additionally enumerates
 each dimension exhaustively, so it cannot be trapped *within* a dimension the
 way a gradient method can.
 
-### 10.6 The problem is the wrong size to benefit
+### 10.7 The problem is the wrong size to benefit
 
 Gradient methods earn their complexity when the dimension is in the hundreds or
 thousands and derivatives are cheap. Here `n` is 3 to 10 and each evaluation is
 milliseconds. Direct enumeration of a small discrete space is both simpler and
 faster.
 
-### 10.7 Summary
+### 10.8 Summary
 
 | Requirement | This problem |
 |---|---|
@@ -480,13 +488,6 @@ Gradient-based NLP is the right tool for a different problem.
 **Reuse unchanged.** `FastEvaluator`, `preference_engine`, `share_calculator`,
 `metrics`, the job/polling API, and the result payload builders.
 
-**Replace.** `optimize_coordinate_ascent`, `optimize_grid`, `optimize_global`,
-`_line_max_feasible`, `_gs_max`, and the `-inf` rejection path inside `_eval`.
-
-**Remove from the hot path.** `apply_shelf_snap` and `raw_prices` (folded into
-the menu); `_has_coupled_price_constraints` (permanently false); the seed-repair
-logic in `preflight_constraints` (starts are feasible by construction).
-
 **Preserve.** Compute `baseline_value` at the **true current prices**, not at
 the nearest menu entry, so reported uplift stays honest. The result already
 separates `baseline_value` from `objective_value`.
@@ -497,10 +498,6 @@ separates `baseline_value` from `objective_value`.
   points in `CorridorPreviewRequest` (34), while the UI sliders are in percent
   points. Unify on percent points before wiring the page, or the margin floor
   will silently be applied as 0.34%.
-- `estimate_evals` (`backend/model/optimizer.py:147`) matches display-cased
-  names such as `"Coordinate Ascent"`, while the request sends
-  `"coordinate_ascent"`, so it always falls through to the default of 600 and
-  mis-scales the progress bar.
 - If `_try_create_fast_evaluator` returns `None` (no Price attribute), each
   evaluation is 20–50× slower. Detect this and either reduce the menu and start
   count or refuse the run with a clear message.

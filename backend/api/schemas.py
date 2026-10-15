@@ -121,12 +121,9 @@ class RunOptimizerRequest(BaseModel):
     bounds: list[SkuBoundInput]
     objective: str = "revenue"
     scope: str = "brand"
-    algorithm: str = "coordinate_ascent"
     max_iters: int = 15
     multi_start: str = "full"  # "full" | "current"
-    grid_points: int = 15
     tol_str: str = "1e-5"
-    run_global: bool = False
     max_volume_drop_pct: float | None = None  # max brand volume drop vs baseline, e.g. 10 = 10%
     # Segment filters (null = all respondents). Prefer filters[] for multi-segment AND.
     filters: list[SegmentFilter] | None = None

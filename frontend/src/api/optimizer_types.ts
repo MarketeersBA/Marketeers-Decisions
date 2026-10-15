@@ -219,13 +219,6 @@ export interface RunOptimizerRequest {
   bounds: SkuBoundInput[];
   objective: string;
   scope?: string;
-  algorithm?: string;
-  max_iters?: number;
-  /** "full" = 5 multi-starts (default); "current" = start from base prices only */
-  multi_start?: "full" | "current";
-  grid_points?: number;
-  tol_str?: string;
-  run_global?: boolean;
   max_volume_drop_pct?: number | null;
   min_margin_pct?: number | null;
   reference_sku?: string | null;

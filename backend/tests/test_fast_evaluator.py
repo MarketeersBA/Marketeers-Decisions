@@ -256,7 +256,7 @@ class ElarabyFastEvaluatorTests(unittest.TestCase):
 
 
     def test_elaraby_floor_rejects_excessive_loss(self) -> None:
-        from model.optimizer import OptSpec, PriceBound, optimize_grid
+        from model.optimizer import OptSpec, PriceBound, optimize_coordinate_ascent
 
         proj = _load_project("ELARABY_PTV_2021")
         model = proj._model
@@ -267,10 +267,9 @@ class ElarabyFastEvaluatorTests(unittest.TestCase):
             bounds=[PriceBound(sku=sku, base_price=base, lo=lo, hi=hi)],
             objective="revenue",
             scope_skus=scope,
-            grid_points=10,
             max_volume_drop_pct=0.0,
         )
-        result = optimize_grid(proj, spec)
+        result = optimize_coordinate_ascent(proj, spec)
         self.assertLessEqual(result.brand_volume_drop_pct, 1e-6)
         self.assertGreaterEqual(result.objective_value, result.baseline_value - 1e-6)
 

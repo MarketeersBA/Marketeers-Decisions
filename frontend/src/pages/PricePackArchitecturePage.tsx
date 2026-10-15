@@ -250,7 +250,6 @@ export function PricePackArchitecturePage() {
   const [minUnitSavingPct, setMinUnitSavingPct] = useState<number | "">(0);
   const [maxUnitSavingPct, setMaxUnitSavingPct] = useState<number | "">("");
   const [showPctConstraints, setShowPctConstraints] = useState(false);
-  const [fastOptimize, setFastOptimize] = useState(true);
   /** className → included */
   const [includedByClass, setIncludedByClass] = useState<Record<string, boolean>>({});
   /** sku name → included in optimization */
@@ -795,8 +794,6 @@ export function PricePackArchitecturePage() {
         ppa_tier_links,
         ppa_min_saving: ppaConfig.minUnitSavingPct != null ? ppaConfig.minUnitSavingPct / 100 : null,
         ppa_max_saving: ppaConfig.maxUnitSavingPct != null ? ppaConfig.maxUnitSavingPct / 100 : null,
-        max_iters: fastOptimize ? 5 : 15,
-        multi_start: fastOptimize ? "current" : "full",
         ...setup,
       };
 
@@ -1243,21 +1240,9 @@ export function PricePackArchitecturePage() {
               >
                 {isOptimizing ? "Optimizing…" : "Run ladder optimizer"}
               </button>
-              <label className="ppa-checkbox-label ppa-fast-opt-label">
-                <input
-                  type="checkbox"
-                  checked={fastOptimize}
-                  onChange={(e) => setFastOptimize(e.target.checked)}
-                  disabled={isOptimizing}
-                />
-                Fast optimize
-              </label>
             </div>
             {optError && <div className="opt-error-panel-msg ppa-run-error">{optError}</div>}
             <p className="opt-note">
-              {fastOptimize
-                ? "Fast mode: starts from current prices only, up to 5 refinement passes (~2–4× quicker)."
-                : "Full mode: 5 multi-starts and up to 15 passes for the best objective."}{" "}
               Run the optimizer to generate an optimized ladder and see the impact on brand and
               category volume, value, and CM.
             </p>

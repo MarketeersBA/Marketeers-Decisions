@@ -19,7 +19,7 @@ Commercial pricing is never unbounded revenue maximization. Pack architecture, c
 | Already on backend? | **Yes** (production-complete for price-only constrained runs) |
 | Decision variables | Continuous pack **prices** for selected brand SKUs |
 | Demand model | Black-box HBU/MNL simulator (not a closed-form elasticity curve) |
-| Solver class to keep | Bound tightening + hard rejection + CA / grid / optional DE — **not** LP/MILP |
+| Solver class to keep | Bound tightening + hard rejection + coordinate ascent — **not** LP/MILP |
 
 ---
 
@@ -44,7 +44,7 @@ Choose pack prices for selected brand SKUs to maximize one commercial objective 
 ```
 Setup (brand, bounds, constraints)
   → preflight_constraints
-  → solver (CA | grid | optional DE)
+  → solver (coordinate ascent)
       → each trial: price rules → simulate → share floor → objective
   → shelf snap + diagnostics
   → job payload (SKU deltas, brand totals, cannibalization)
@@ -108,7 +108,7 @@ Each infeasible trial scores **−∞** (rejected). Shelf endings are applied **
 
 | Layer | Path | Role |
 |-------|------|------|
-| Core | `backend/model/optimizer.py` | `OptSpec`, constraints, CA / grid / DE, diagnostics |
+| Core | `backend/model/optimizer.py` | `OptSpec`, constraints, coordinate ascent, diagnostics |
 | Fast path | `backend/model/fast_evaluator.py` | Vectorized MNL inner-loop evals |
 | API | `backend/api/routes/optimizer.py` | REST + async `JobRecord` |
 | Contract | `backend/api/schemas.py` | `SkuBoundInput`, `RunOptimizerRequest`, save-scenario |
@@ -156,9 +156,7 @@ Do **not** replace the black-box loop with a parametric LP/MILP. The objective i
 | `bounds[]` | Per SKU: `sku`, `base_price`, `lo`, `hi`, `cost`, `included` |
 | `objective` | `revenue` \| `value_share` \| `volume_share` \| `margin` |
 | `scope` | Brand vs selected decision SKUs |
-| `algorithm` | `coordinate_ascent` (default) \| `grid` |
-| `max_iters`, `grid_points`, `tol_str` | Search controls |
-| `run_global` | If true, also try differential evolution; keep better |
+| `max_iters`, `tol_str` | Search controls (coordinate ascent passes and convergence tolerance) |
 | `filters` / `assignment_key`+`member` | Optional segment filters |
 | `base_scenario` | Optional starting prices (else study base) |
 
@@ -176,15 +174,9 @@ Do **not** replace the black-box loop with a parametric LP/MILP. The objective i
 
 ---
 
-## 9. Solver strategy
+## 9. Solver
 
-| Algorithm | When | Constraint handling |
-|-----------|------|---------------------|
-| `coordinate_ascent` (default) | Typical multi-SKU brand runs | 1-D line search; dense grid if PPA/corridor couple SKUs |
-| `grid` | 1–2 SKUs exhaustive; 3+ coordinate grid | Feasibility checked every node |
-| Differential evolution | `run_global=true`; pick better of CA vs DE | Penalty / −∞ outside feasible set |
-
-Coupled price constraints (`_has_coupled_price_constraints`) force denser 1-D search instead of golden section alone.
+The solver is **menu-based block coordinate ascent** (`optimize_coordinate_ascent`). See [`docs/optimization algorithm .md`](optimization algorithm .md) for the full algorithm description, guarantees, and rationale for why grid search, differential evolution, and gradient-based NLP are not used.
 
 ---
 
@@ -233,7 +225,7 @@ Capability is **production-ready** for constrained price optimization. Further b
 | `PriceBound`, `OptSpec`, `OptResult` | `optimizer.py` | Spec / result |
 | `ConstraintSetupError` | `optimizer.py` | Empty / invalid setup |
 | `preflight_constraints`, `validate_constraint_setup` | `optimizer.py` | Setup checks + PPA seed repair |
-| `optimize_coordinate_ascent`, `optimize_grid`, `optimize_global` | `optimizer.py` | Solvers |
+| `optimize_coordinate_ascent` | `optimizer.py` | Solver |
 | `apply_guardrail_bounds`, `apply_shelf_snap` | `optimizer.py` | Bound tighten + shelf |
 | `FastEvaluator` | `fast_evaluator.py` | Fast evals |
 | `RunOptimizerRequest` | `schemas.py` | HTTP body |

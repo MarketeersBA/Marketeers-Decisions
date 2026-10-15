@@ -134,7 +134,7 @@ Creates a minimal demo study if none exists, loads it, runs a price change, chec
 | `backend/model/attribute_engine.py` | Attribute changes |
 | `backend/model/project_core.py` | UI-facing simulation API |
 | `backend/model/analytics/` | Chart Analysis ports (elasticity, fair share, validation, …) |
-| `backend/model/optimizer.py` | Brand SKU price optimization (coordinate ascent, grid, scipy) |
+| `backend/model/optimizer.py` | Brand SKU price optimization (coordinate ascent) |
 | `backend/utils/excel_export.py` | Formatted Excel export (REQ-EXP-01) |
 
 ## Roadmap

@@ -197,20 +197,10 @@ def get_calibrated_bounds(
     return lo, hi
 
 
-def estimate_evals(spec: "OptSpec", algorithm: str) -> int:
+def estimate_evals(spec: "OptSpec") -> int:
     """Rough upper-bound on evaluation count (for progress bar scaling)."""
     n = len(spec.bounds)
-    algo = (algorithm or "").lower().replace(" ", "_")
-    if algo in ("coordinate_ascent", "coordinate-ascent"):
-        return spec.max_iters * n * 15 + n * 25 + 5
-    elif algo in ("grid_search", "grid"):
-        if n == 1:
-            return spec.grid_points + 25 + 1
-        elif n == 2:
-            return spec.grid_points ** 2 + 1
-        else:
-            return n * spec.grid_points + 1
-    return 600
+    return spec.max_iters * n * 15 + n * 25 + 5
 
 
 # ── data structures ──────────────────────────────────────────────────────────
@@ -232,7 +222,6 @@ class OptSpec:
     max_iters: int = 15
     multi_start: str = "full"  # "full" | "current" — full = 5 starts; current = base prices only
     tol: float = 1e-5
-    grid_points: int = 15
     max_volume_drop_pct: float | None = None  # None = off; max brand volume drop vs baseline (%)
     baseline_brand_volume: float | None = None  # sum of scope NewShare at baseline; set on first eval
 
@@ -282,7 +271,6 @@ class OptResult:
     raw_prices: dict[str, float] = field(default_factory=dict)
     duration_ms: float | None = None
     n_passes: int = 0
-    algorithm: str | None = None
     menus: dict[str, list[float]] | None = None
 
     @property

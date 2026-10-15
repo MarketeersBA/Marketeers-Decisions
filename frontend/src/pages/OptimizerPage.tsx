@@ -2127,7 +2127,6 @@ export function OptimizerPage() {
       bounds,
       objective: objectiveToBackend(objective),
       scope: "brand",
-      algorithm: "coordinate_ascent",
       max_volume_drop_pct: shareLossLimit,
       min_margin_pct: marginFloor,
       reference_sku: focusRefSku || null,

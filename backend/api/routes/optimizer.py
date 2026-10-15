@@ -434,7 +434,6 @@ def _build_result_payload(
         "raw_prices": res.raw_prices,
         "duration_ms": res.duration_ms,
         "n_passes": res.n_passes,
-        "algorithm": res.algorithm,
         "menus": res.menus,
         "reference_sku": getattr(req, "reference_sku", None),
         "anchor_label": getattr(req, "anchor_label", None),
@@ -825,7 +824,6 @@ def _run_job(job: JobRecord, req: RunOptimizerRequest) -> None:
             max_iters=req.max_iters,
             multi_start=getattr(req, "multi_start", "full"),
             tol=float(req.tol_str),
-            grid_points=req.grid_points,
             max_volume_drop_pct=req.max_volume_drop_pct,
             reference_sku=reference_sku,
             anchor_label=getattr(req, "anchor_label", None),
@@ -856,7 +854,6 @@ def _run_job(job: JobRecord, req: RunOptimizerRequest) -> None:
         res = optimize_coordinate_ascent(project, spec, on_eval=on_eval)
 
         res.duration_ms = (_time.perf_counter() - t0) * 1000.0
-        res.algorithm = req.algorithm
         job.result = res
         job.status = "done"
     except InterruptedError:
@@ -882,7 +879,7 @@ def run_optimizer(
 
     bounds = [PriceBound(b.sku, b.base_price, b.lo, b.hi, b.cost) for b in body.bounds if b.included]
     spec = OptSpec(bounds=bounds, objective=body.objective, scope_skus=[])
-    est_evals = estimate_evals(spec, body.algorithm)
+    est_evals = estimate_evals(spec)
 
     job = JobRecord(
         job_id=job_id,
