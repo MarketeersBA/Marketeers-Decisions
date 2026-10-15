@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 
@@ -47,6 +49,15 @@ def _project_or_404(session_id: str, client_id: str) -> ProjectCore:
 def _slug_or_404(session_id: str, client_id: str) -> str:
     try:
         return session_manager.get_slug(session_id, client_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Session not found or expired") from exc
+
+
+@contextmanager
+def _mutate_or_404(session_id: str, client_id: str):
+    try:
+        with session_manager.mutate(session_id, client_id) as project:
+            yield project
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Session not found or expired") from exc
 
@@ -105,13 +116,13 @@ def set_segmentation(
     body: SegmentationRequest,
     client_id: str = Depends(get_current_client_id),
 ) -> dict:
-    project = _project_or_404(session_id, client_id)
-    if body.filters is not None:
-        filt = [(f.assignment_key, f.member) for f in body.filters]
-        project.apply_segmentation_from_session(None, None, filters=filt)
-    else:
-        project.apply_segmentation_from_session(body.assignment_key, body.member)
-    return _payload(session_id, project, client_id)
+    with _mutate_or_404(session_id, client_id) as project:
+        if body.filters is not None:
+            filt = [(f.assignment_key, f.member) for f in body.filters]
+            project.apply_segmentation_from_session(None, None, filters=filt)
+        else:
+            project.apply_segmentation_from_session(body.assignment_key, body.member)
+        return _payload(session_id, project, client_id)
 
 
 @router.post("/{session_id}/recalculate")
@@ -120,23 +131,23 @@ def recalculate(
     body: RecalculateRequest | None = None,
     client_id: str = Depends(get_current_client_id),
 ) -> dict:
-    project = _project_or_404(session_id, client_id)
-    changes = body.changes if body else []
-    applied, warnings = apply_grid_changes(project, changes)
-    project.find_predicted_shares()
-    payload = _payload(session_id, project, client_id)
-    payload["changesApplied"] = applied
-    if warnings:
-        payload["warnings"] = warnings
-    return payload
+    with _mutate_or_404(session_id, client_id) as project:
+        changes = body.changes if body else []
+        applied, warnings = apply_grid_changes(project, changes)
+        project.find_predicted_shares()
+        payload = _payload(session_id, project, client_id)
+        payload["changesApplied"] = applied
+        if warnings:
+            payload["warnings"] = warnings
+        return payload
 
 
 @router.post("/{session_id}/reset")
 def reset(session_id: str, client_id: str = Depends(get_current_client_id)) -> dict:
-    project = _project_or_404(session_id, client_id)
-    project.reset_products()
-    project.scenario_name = ""
-    return _payload(session_id, project, client_id)
+    with _mutate_or_404(session_id, client_id) as project:
+        project.reset_products()
+        project.scenario_name = ""
+        return _payload(session_id, project, client_id)
 
 
 @router.post("/{session_id}/apply-scenario")
@@ -145,15 +156,15 @@ def apply_scenario(
     body: ApplyScenarioRequest,
     client_id: str = Depends(get_current_client_id),
 ) -> dict:
-    project = _project_or_404(session_id, client_id)
     slug = _slug_or_404(session_id, client_id)
     store = ScenarioStore(slug, client_id)
     try:
         scenario = store.load(body.name)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=f"Scenario not found: {body.name}") from exc
-    project.apply_scenario(scenario)
-    return _payload(session_id, project, client_id)
+    with _mutate_or_404(session_id, client_id) as project:
+        project.apply_scenario(scenario)
+        return _payload(session_id, project, client_id)
 
 
 @router.post("/{session_id}/competitor-reaction")
@@ -163,35 +174,34 @@ def competitor_reaction(
     client_id: str = Depends(get_current_client_id),
 ) -> dict:
     """Reset to base, apply competitor price moves, save as a named scenario, leave it loaded."""
-    project = _project_or_404(session_id, client_id)
-    slug = _slug_or_404(session_id, client_id)
-
     moves = [m for m in body.moves if abs(m.pct) >= 1e-12]
     if not moves:
         raise HTTPException(status_code=400, detail="Select at least one competitor price change")
     if not body.group_type.strip():
         raise HTTPException(status_code=400, detail="group_type is required")
 
-    # reset_products clears segmentation — restore the session's active filters.
-    active_segments = project.get_active_segments()
-    project.reset_products()
-    if active_segments:
-        project.apply_segmentation_filters(active_segments)
+    slug = _slug_or_404(session_id, client_id)
+    with _mutate_or_404(session_id, client_id) as project:
+        # reset_products clears segmentation — restore the session's active filters.
+        active_segments = project.get_active_segments()
+        project.reset_products()
+        if active_segments:
+            project.apply_segmentation_filters(active_segments)
 
-    changed = apply_competitor_price_moves(project, body.group_type, moves)
-    if changed == 0:
-        raise HTTPException(
-            status_code=400,
-            detail="No SKUs matched the selected competitor brands",
-        )
+        changed = apply_competitor_price_moves(project, body.group_type, moves)
+        if changed == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="No SKUs matched the selected competitor brands",
+            )
 
-    name = body.name.strip() or _scenario_name_from_moves(moves)
-    description = body.description.strip() or f"Competitor price reaction: {name}"
-    store = ScenarioStore(slug, client_id)
-    scenario = project.capture_scenario(name, description)
-    store.save(scenario)
-    project.scenario_name = name
-    return _payload(session_id, project, client_id)
+        name = body.name.strip() or _scenario_name_from_moves(moves)
+        description = body.description.strip() or f"Competitor price reaction: {name}"
+        store = ScenarioStore(slug, client_id)
+        scenario = project.capture_scenario(name, description)
+        store.save(scenario)
+        project.scenario_name = name
+        return _payload(session_id, project, client_id)
 
 
 @router.get("/{session_id}/export")

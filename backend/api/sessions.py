@@ -6,6 +6,7 @@ cap memory with idle TTL eviction. Every session is bound to a tenant.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 import threading
 import time
 import uuid
@@ -20,13 +21,25 @@ class _Session:
     slug: str
     client_id: str
     last_access: float = field(default_factory=time.time)
+    lock: threading.Lock = field(default_factory=threading.Lock)
 
 
 class SessionManager:
-    def __init__(self, ttl_seconds: int = 3600) -> None:
+    def __init__(self, ttl_seconds: int = 3600, cleanup_interval_seconds: int = 300) -> None:
         self._ttl = ttl_seconds
+        self._cleanup_interval = cleanup_interval_seconds
         self._sessions: dict[str, _Session] = {}
         self._lock = threading.Lock()
+
+        # Background cleanup thread to periodically evict expired sessions
+        self._stop_event = threading.Event()
+        self._cleanup_thread = threading.Thread(target=self._periodic_cleanup, daemon=True)
+        self._cleanup_thread.start()
+
+    def _periodic_cleanup(self) -> None:
+        while not self._stop_event.is_set():
+            time.sleep(self._cleanup_interval)
+            self._evict_expired()
 
     def create(self, slug: str, client_id: str | None = None) -> str:
         """Load a study into a fresh ProjectCore and return its session id."""
@@ -42,10 +55,18 @@ class SessionManager:
         return session_id
 
     def _require(self, session_id: str, client_id: str) -> _Session:
+        """Retrieve session while enforcing TTL expiration."""
+        now = time.time()
         session = self._sessions.get(session_id)
         if session is None or session.client_id != client_id:
             raise KeyError(session_id)
-        session.last_access = time.time()
+
+        # Enforce expiry on access: if expired, evict immediately and raise
+        if now - session.last_access > self._ttl:
+            self._sessions.pop(session_id, None)
+            raise KeyError(session_id)
+
+        session.last_access = now
         return session
 
     def get(self, session_id: str, client_id: str) -> ProjectCore:
@@ -55,6 +76,14 @@ class SessionManager:
     def get_slug(self, session_id: str, client_id: str) -> str:
         with self._lock:
             return self._require(session_id, client_id).slug
+
+    @contextmanager
+    def mutate(self, session_id: str, client_id: str):
+        """Context manager to serialize mutations and calculations on a session's ProjectCore."""
+        with self._lock:
+            session = self._require(session_id, client_id)
+        with session.lock:
+            yield session.project
 
     def close(self, session_id: str, client_id: str) -> None:
         with self._lock:
@@ -75,9 +104,11 @@ class SessionManager:
     ) -> None:
         """Update display-only meta on live sessions for this tenant and study slug."""
         with self._lock:
-            for session in self._sessions.values():
-                if session.client_id != client_id or session.slug != slug:
-                    continue
+            sessions = list(self._sessions.values())
+        for session in sessions:
+            if session.client_id != client_id or session.slug != slug:
+                continue
+            with session.lock:
                 model = session.project._model
                 if model and model.doc:
                     model.doc.meta.price_currency_symbol = price_currency_symbol
@@ -86,9 +117,11 @@ class SessionManager:
     def reload_study_for_slug(self, client_id: str, slug: str) -> None:
         """Reload study.json + HBU from storage for this tenant's sessions on this slug."""
         with self._lock:
-            for session in self._sessions.values():
-                if session.client_id != client_id or session.slug != slug:
-                    continue
+            sessions = list(self._sessions.values())
+        for session in sessions:
+            if session.client_id != client_id or session.slug != slug:
+                continue
+            with session.lock:
                 session.project.initialize()
 
     def _evict_expired(self) -> None:
