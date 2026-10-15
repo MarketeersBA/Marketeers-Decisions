@@ -480,6 +480,8 @@ export function useCreateStudy() {
       hbu_source_filename?: string;
       data_period?: string;
       data_source?: string;
+      allow_overwrite?: boolean;
+      auto_disambiguate?: boolean;
     }) =>
       api.post<{ slug: string; name: string; company: string }>(
         "/api/studies",

@@ -80,6 +80,28 @@ class StudyRepository:
                 is_default=row.is_default,
             )
 
+    def exists(self, client_id: str, slug: str, include_deleted: bool = False) -> bool:
+        with session_scope() as session:
+            stmt = select(StudyRow).where(
+                StudyRow.client_id == client_id,
+                StudyRow.slug == slug,
+            )
+            if not include_deleted:
+                stmt = stmt.where(StudyRow.deleted_at.is_(None))
+            return session.scalar(stmt) is not None
+
+    def make_unique_slug(self, client_id: str, name: str) -> str:
+        """Derive a slug from name and disambiguate with numeric suffixes if a collision exists."""
+        from config import get_storage
+        base_slug = slugify(name)
+        storage = get_storage()
+        candidate = base_slug
+        counter = 2
+        while self.exists(client_id, candidate, include_deleted=True) or storage.study_exists(client_id, candidate):
+            candidate = f"{base_slug}_{counter}"
+            counter += 1
+        return candidate
+
     def add(
         self,
         client_id: str,
@@ -88,13 +110,20 @@ class StudyRepository:
         company: str = "",
         *,
         set_default: bool = True,
+        allow_overwrite: bool = True,
     ) -> StudyEntry:
+        from data.study_writer import StudyConflictError
+
         with session_scope() as session:
             self._ensure_client(session, client_id)
             row = session.scalar(
                 select(StudyRow).where(StudyRow.client_id == client_id, StudyRow.slug == slug)
             )
             if row:
+                if not allow_overwrite and row.deleted_at is None:
+                    raise StudyConflictError(
+                        f"Study '{slug}' already exists for client '{client_id}'."
+                    )
                 row.name = name
                 row.company = company
                 row.deleted_at = None

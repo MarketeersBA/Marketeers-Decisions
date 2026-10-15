@@ -89,6 +89,8 @@ class CreateStudyRequest(BaseModel):
     hbu_source_filename: str = ""
     data_period: str = ""
     data_source: str = ""
+    allow_overwrite: bool = False
+    auto_disambiguate: bool = False
 
 
 class PatchStudyMetaRequest(BaseModel):

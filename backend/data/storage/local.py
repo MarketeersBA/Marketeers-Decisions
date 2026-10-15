@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
+import uuid
 from pathlib import Path
 
 import pandas as pd
@@ -34,29 +36,60 @@ class LocalStorageBackend:
         hbu_df = pd.read_parquet(hbu_path)
         return doc, hbu_df
 
-    def write_study(self, client_id: str, doc: StudyDocument, hbu_df: pd.DataFrame) -> str:
-        slug = slugify(doc.meta.study_name or "unnamed_study")
-        root = self.study_root_path(client_id, slug)
-        root.mkdir(parents=True, exist_ok=True)
-        config_scenarios_dir(slug, client_id)
-        with (root / "study.json").open("w", encoding="utf-8") as fh:
-            json.dump(doc.to_dict(), fh, indent=2)
-        hbu_df.to_parquet(root / "hbu.parquet", index=False)
-        return slug
+    def write_study(
+        self, client_id: str, doc: StudyDocument, hbu_df: pd.DataFrame, slug: str | None = None
+    ) -> str:
+        target_slug = slug or slugify(doc.meta.study_name or "unnamed_study")
+        root = self.study_root_path(client_id, target_slug)
+        root.parent.mkdir(parents=True, exist_ok=True)
+
+        staging_dir = root.parent / f".staging_{target_slug}_{uuid.uuid4().hex[:8]}"
+        staging_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            temp_json = staging_dir / "study.json"
+            temp_parquet = staging_dir / "hbu.parquet"
+            with temp_json.open("w", encoding="utf-8") as fh:
+                json.dump(doc.to_dict(), fh, indent=2)
+            hbu_df.to_parquet(temp_parquet, index=False)
+
+            root.mkdir(parents=True, exist_ok=True)
+            config_scenarios_dir(target_slug, client_id)
+
+            os.replace(temp_json, root / "study.json")
+            os.replace(temp_parquet, root / "hbu.parquet")
+        finally:
+            if staging_dir.exists():
+                shutil.rmtree(staging_dir, ignore_errors=True)
+
+        return target_slug
 
     def persist_study_document(self, client_id: str, slug: str, doc: StudyDocument) -> None:
         path = self.study_root_path(client_id, slug) / "study.json"
-        with path.open("w", encoding="utf-8") as fh:
-            json.dump(doc.to_dict(), fh, indent=2)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = path.with_suffix(f".json.tmp.{uuid.uuid4().hex[:8]}")
+        try:
+            with tmp_path.open("w", encoding="utf-8") as fh:
+                json.dump(doc.to_dict(), fh, indent=2)
+            os.replace(tmp_path, path)
+        finally:
+            if tmp_path.exists():
+                tmp_path.unlink(missing_ok=True)
 
     def persist_hbu_dataframe(self, client_id: str, slug: str, hbu_df: pd.DataFrame) -> None:
         path = self.study_root_path(client_id, slug) / "hbu.parquet"
-        hbu_df.to_parquet(path, index=False)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = path.with_suffix(f".parquet.tmp.{uuid.uuid4().hex[:8]}")
+        try:
+            hbu_df.to_parquet(tmp_path, index=False)
+            os.replace(tmp_path, path)
+        finally:
+            if tmp_path.exists():
+                tmp_path.unlink(missing_ok=True)
 
     def delete_study_tree(self, client_id: str, slug: str) -> None:
         root = self.study_root_path(client_id, slug)
         if root.exists():
-            shutil.rmtree(root)
+            shutil.rmtree(root, ignore_errors=True)
 
     def put_study_file(self, client_id: str, slug: str, rel_path: str) -> None:
         """No-op for local storage; file is already written in place."""

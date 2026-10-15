@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
+import uuid
 from pathlib import Path
 
 import pandas as pd
@@ -82,27 +84,60 @@ class S3StorageBackend:
             doc = StudyDocument.from_dict(json.load(fh))
         return doc, pd.read_parquet(hbu_path)
 
-    def write_study(self, client_id: str, doc: StudyDocument, hbu_df: pd.DataFrame) -> str:
-        slug = slugify(doc.meta.study_name or "unnamed_study")
-        root = self._mirror_root(client_id, slug)
-        root.mkdir(parents=True, exist_ok=True)
-        (root / "scenarios").mkdir(parents=True, exist_ok=True)
-        with (root / "study.json").open("w", encoding="utf-8") as fh:
-            json.dump(doc.to_dict(), fh, indent=2)
-        hbu_df.to_parquet(root / "hbu.parquet", index=False)
-        self._upload_tree(client_id, slug)
-        return slug
+    def write_study(
+        self, client_id: str, doc: StudyDocument, hbu_df: pd.DataFrame, slug: str | None = None
+    ) -> str:
+        target_slug = slug or slugify(doc.meta.study_name or "unnamed_study")
+        root = self._mirror_root(client_id, target_slug)
+        root.parent.mkdir(parents=True, exist_ok=True)
+
+        staging_dir = root.parent / f".staging_{target_slug}_{uuid.uuid4().hex[:8]}"
+        staging_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            temp_json = staging_dir / "study.json"
+            temp_parquet = staging_dir / "hbu.parquet"
+            with temp_json.open("w", encoding="utf-8") as fh:
+                json.dump(doc.to_dict(), fh, indent=2)
+            hbu_df.to_parquet(temp_parquet, index=False)
+
+            root.mkdir(parents=True, exist_ok=True)
+            (root / "scenarios").mkdir(parents=True, exist_ok=True)
+
+            os.replace(temp_json, root / "study.json")
+            os.replace(temp_parquet, root / "hbu.parquet")
+        finally:
+            if staging_dir.exists():
+                shutil.rmtree(staging_dir, ignore_errors=True)
+
+        self._upload_tree(client_id, target_slug)
+        return target_slug
 
     def persist_study_document(self, client_id: str, slug: str, doc: StudyDocument) -> None:
         root = self._mirror_root(client_id, slug)
-        with (root / "study.json").open("w", encoding="utf-8") as fh:
-            json.dump(doc.to_dict(), fh, indent=2)
-        self._upload_tree(client_id, slug)
+        root.mkdir(parents=True, exist_ok=True)
+        path = root / "study.json"
+        tmp_path = path.with_suffix(f".json.tmp.{uuid.uuid4().hex[:8]}")
+        try:
+            with tmp_path.open("w", encoding="utf-8") as fh:
+                json.dump(doc.to_dict(), fh, indent=2)
+            os.replace(tmp_path, path)
+        finally:
+            if tmp_path.exists():
+                tmp_path.unlink(missing_ok=True)
+        self.put_study_file(client_id, slug, "study.json")
 
     def persist_hbu_dataframe(self, client_id: str, slug: str, hbu_df: pd.DataFrame) -> None:
         root = self._mirror_root(client_id, slug)
-        hbu_df.to_parquet(root / "hbu.parquet", index=False)
-        self._upload_tree(client_id, slug)
+        root.mkdir(parents=True, exist_ok=True)
+        path = root / "hbu.parquet"
+        tmp_path = path.with_suffix(f".parquet.tmp.{uuid.uuid4().hex[:8]}")
+        try:
+            hbu_df.to_parquet(tmp_path, index=False)
+            os.replace(tmp_path, path)
+        finally:
+            if tmp_path.exists():
+                tmp_path.unlink(missing_ok=True)
+        self.put_study_file(client_id, slug, "hbu.parquet")
 
     def delete_study_tree(self, client_id: str, slug: str) -> None:
         prefix = self._prefix(client_id, slug)

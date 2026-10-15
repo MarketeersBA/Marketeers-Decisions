@@ -74,6 +74,7 @@ export function StudyUploadWizard({ onCancel, embedded = false }: StudyUploadWiz
 
   const [activeTable, setActiveTable] = useState<"products" | "attributes" | "groups" | "segments" | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [conflictError, setConflictError] = useState<string | null>(null);
 
   const designInputRef = useRef<HTMLInputElement>(null);
   const hbuInputRef = useRef<HTMLInputElement>(null);
@@ -143,9 +144,10 @@ export function StudyUploadWizard({ onCancel, embedded = false }: StudyUploadWiz
     }
   };
 
-  const handleCreateStudy = async () => {
+  const handleCreateStudy = async (options?: { allowOverwrite?: boolean; autoDisambiguate?: boolean }) => {
     if (!wizardId || !studyName.trim()) return;
     setErrorMsg(null);
+    setConflictError(null);
     try {
       const price_currency_symbol = resolveUnitField(
         currencySelect,
@@ -175,11 +177,18 @@ export function StudyUploadWizard({ onCancel, embedded = false }: StudyUploadWiz
         hbu_source_filename: hbuFile?.name ?? "",
         data_period: dataPeriod,
         data_source: dataSource,
+        allow_overwrite: options?.allowOverwrite ?? false,
+        auto_disambiguate: options?.autoDisambiguate ?? false,
       });
       setCreatedSlug(res.slug);
       setStep(3);
     } catch (err: any) {
-      setErrorMsg(err.message || "Failed to finalize study.");
+      const msg = err.message || "Failed to finalize study.";
+      if (msg.toLowerCase().includes("already exists") || err.status === 409) {
+        setConflictError(msg);
+      } else {
+        setErrorMsg(msg);
+      }
     }
   };
 
@@ -209,6 +218,7 @@ export function StudyUploadWizard({ onCancel, embedded = false }: StudyUploadWiz
     setDataPeriod(defaultDataPeriod());
     setDataSource(DEFAULT_DATA_SOURCE);
     setErrorMsg(null);
+    setConflictError(null);
   };
 
   const handleCancel = () => {
@@ -389,7 +399,10 @@ export function StudyUploadWizard({ onCancel, embedded = false }: StudyUploadWiz
                 <input
                   type="text"
                   value={studyName}
-                  onChange={(e) => setStudyName(e.target.value)}
+                  onChange={(e) => {
+                    setStudyName(e.target.value);
+                    if (conflictError) setConflictError(null);
+                  }}
                   placeholder="e.g. Arabica Coffee Ingestion"
                 />
               </div>
@@ -518,13 +531,40 @@ export function StudyUploadWizard({ onCancel, embedded = false }: StudyUploadWiz
             </div>
           </div>
 
+          {conflictError && (
+            <div className="notice-warn mt-16" style={{ borderColor: "#f59e0b", backgroundColor: "#fffbeb", padding: "12px", borderRadius: "6px" }}>
+              <div style={{ marginBottom: "8px", color: "#92400e" }}>
+                ⚠️ <strong>Study Already Exists:</strong> {conflictError}
+              </div>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  style={{ backgroundColor: "#ef4444", borderColor: "#ef4444" }}
+                  disabled={createStudyMutation.isPending}
+                  onClick={() => handleCreateStudy({ allowOverwrite: true })}
+                >
+                  Overwrite Existing Study
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={createStudyMutation.isPending}
+                  onClick={() => handleCreateStudy({ autoDisambiguate: true })}
+                >
+                  Save as Copy
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="wizard-actions mt-16">
             <button type="button" className="btn-secondary" onClick={() => setStep(1)}>← Back</button>
             <button
               type="button"
               className="btn-primary"
               disabled={!studyName.trim() || createStudyMutation.isPending}
-              onClick={handleCreateStudy}
+              onClick={() => handleCreateStudy()}
             >
               {createStudyMutation.isPending ? "Creating study…" : "Create Study →"}
             </button>

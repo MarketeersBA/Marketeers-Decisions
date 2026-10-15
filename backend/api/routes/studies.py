@@ -13,10 +13,10 @@ from api.deps import get_current_client_id
 from api.schemas import CreateStudyRequest, PatchStudyMetaRequest, UpdateStudyRequest
 from api.sessions import session_manager
 from api.study_access import ensure_study_access
-from config import get_storage
+from config import get_storage, slugify
 from data.excel_importer import ExcelImportError, import_design_sheet, import_hbu_sheet
 from data.study_reingest import apply_hbu_replace, merge_design_replace
-from data.study_writer import persist_hbu_dataframe, persist_study_document, write_study
+from data.study_writer import StudyConflictError, persist_hbu_dataframe, persist_study_document, write_study
 from db.repository import StudyRepository
 from model.project_core import ProjectCore
 from model.study_schema import StudyDocument
@@ -297,8 +297,31 @@ def create_study(body: CreateStudyRequest, client_id: str = Depends(get_current_
     doc.meta.design_source_updated_at = now
     doc.meta.hbu_source_updated_at = now
 
+    repo = StudyRepository()
+    storage = get_storage()
+    base_slug = slugify(doc.meta.study_name or "unnamed_study")
+    study_exists = repo.exists(client_id, base_slug) or storage.study_exists(client_id, base_slug)
+
+    target_slug = base_slug
+    if study_exists and not body.allow_overwrite:
+        if body.auto_disambiguate:
+            target_slug = repo.make_unique_slug(client_id, doc.meta.study_name)
+        else:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Study '{doc.meta.study_name}' already exists (slug: '{base_slug}'). Set allow_overwrite to replace or auto_disambiguate to save as a copy.",
+            )
+
     try:
-        slug = write_study(doc, hbu_df, client_id)
+        slug = write_study(
+            doc,
+            hbu_df,
+            client_id=client_id,
+            slug=target_slug,
+            allow_overwrite=body.allow_overwrite,
+        )
+    except StudyConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to create study: {exc}") from exc
 
