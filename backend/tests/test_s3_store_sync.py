@@ -82,9 +82,15 @@ def test_scenario_save_reorder_delete_persists_to_s3(s3_env) -> None:
     store.save(ScenarioData(name="Base", description="baseline"))
     store.save(ScenarioData(name="Price cut", description="promo"))
 
-    assert f"clients/{client_id}/{slug}/scenarios/Base.json" in fake_s3.objects
-    assert f"clients/{client_id}/{slug}/scenarios/Price cut.json" in fake_s3.objects
+    entries = store.list_scenarios()
+    assert {e["name"] for e in entries} == {"Base", "Price cut"}
+    assert all(e.get("id") and e["file"] == f"{e['id']}.json" for e in entries)
+    for entry in entries:
+        assert f"clients/{client_id}/{slug}/scenarios/{entry['file']}" in fake_s3.objects
     assert f"clients/{client_id}/{slug}/scenarios/index.json" in fake_s3.objects
+
+    price_cut_id = next(e["id"] for e in entries if e["name"] == "Price cut")
+    price_cut_key = f"clients/{client_id}/{slug}/scenarios/{price_cut_id}.json"
 
     # Wipe the local mirror and verify synchronization restores from S3 without losing data
     shutil.rmtree(backend._mirror_root(client_id, slug))
@@ -101,11 +107,12 @@ def test_scenario_save_reorder_delete_persists_to_s3(s3_env) -> None:
 
     # Delete removes from S3 and prunes stale mirror files on next sync
     ScenarioStore(slug, client_id).delete("Price cut")
-    assert f"clients/{client_id}/{slug}/scenarios/Price cut.json" not in fake_s3.objects
+    assert price_cut_key not in fake_s3.objects
 
-    # Simulate another worker that still had Price cut.json in its local mirror before syncing
-    stale_file = backend._mirror_root(client_id, slug) / "scenarios" / "Price cut.json"
-    stale_file.write_text('{"name": "Price cut"}', encoding="utf-8")
+    # Simulate another worker that still had the deleted scenario file in its local mirror
+    stale_file = backend._mirror_root(client_id, slug) / "scenarios" / f"{price_cut_id}.json"
+    stale_file.parent.mkdir(parents=True, exist_ok=True)
+    stale_file.write_text('{"name": "Price cut", "id": "%s"}' % price_cut_id, encoding="utf-8")
     synced_store = ScenarioStore(slug, client_id)
     assert not stale_file.exists()
     assert [e["name"] for e in synced_store.list_scenarios()] == ["Base"]
