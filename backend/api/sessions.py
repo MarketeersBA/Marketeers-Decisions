@@ -114,6 +114,26 @@ class SessionManager:
                     model.doc.meta.price_currency_symbol = price_currency_symbol
                     model.doc.meta.size_unit_label = size_unit_label
 
+    def sync_study_identity_meta(
+        self,
+        client_id: str,
+        slug: str,
+        *,
+        study_name: str,
+        company_name: str,
+    ) -> None:
+        """Update study name/company on live sessions so lists and exports stay aligned."""
+        with self._lock:
+            sessions = list(self._sessions.values())
+        for session in sessions:
+            if session.client_id != client_id or session.slug != slug:
+                continue
+            with session.lock:
+                model = session.project._model
+                if model and model.doc:
+                    model.doc.meta.study_name = study_name
+                    model.doc.meta.company_name = company_name
+
     def reload_study_for_slug(self, client_id: str, slug: str) -> None:
         """Reload study.json + HBU from storage for this tenant's sessions on this slug."""
         with self._lock:

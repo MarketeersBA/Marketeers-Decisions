@@ -205,18 +205,30 @@ def update_study(
     body: UpdateStudyRequest,
     client_id: str = Depends(get_current_client_id),
 ) -> dict:
+    """Update study identity and trust fields.
+
+    Ownership:
+    - Catalog (`StudyRepository`) is the list/index source for name, company, default, slug.
+    - `study.json` meta mirrors name/company and owns data_period/data_source (and other doc fields).
+    - PATCH keeps catalog and document identity in sync, then refreshes live sessions.
+    """
     ensure_study_access(client_id, slug)
     repo = StudyRepository()
     entry = repo.get_by_slug(client_id, slug)
     if entry is None:
         raise HTTPException(status_code=404, detail=f"Study not found: {slug}")
 
-    if body.name is not None or body.company is not None:
+    new_name = body.name.strip() if body.name is not None else entry.name
+    new_company = body.company.strip() if body.company is not None else entry.company
+    identity_changed = body.name is not None or body.company is not None
+    trust_changed = body.data_period is not None or body.data_source is not None
+
+    if identity_changed:
         repo.add(
             client_id,
             slug,
-            body.name.strip() if body.name is not None else entry.name,
-            body.company.strip() if body.company is not None else entry.company,
+            new_name,
+            new_company,
             set_default=body.set_default,
         )
     elif body.set_default:
@@ -227,21 +239,38 @@ def update_study(
 
     data_period = ""
     data_source = ""
-    if ProjectCore.study_exists(slug, client_id) and (
-        body.data_period is not None or body.data_source is not None
-    ):
+    if ProjectCore.study_exists(slug, client_id):
         doc = _load_study_doc(client_id, slug)
+        doc_dirty = False
+        if identity_changed:
+            if doc.meta.study_name != new_name:
+                doc.meta.study_name = new_name
+                doc_dirty = True
+            if doc.meta.company_name != new_company:
+                doc.meta.company_name = new_company
+                doc_dirty = True
         if body.data_period is not None:
             doc.meta.data_period = body.data_period.strip()
+            doc_dirty = True
         if body.data_source is not None:
             doc.meta.data_source = body.data_source.strip()
-        persist_study_document(slug, doc, client_id)
+            doc_dirty = True
+        if doc_dirty:
+            persist_study_document(slug, doc, client_id)
+        if identity_changed:
+            session_manager.sync_study_identity_meta(
+                client_id,
+                slug,
+                study_name=doc.meta.study_name,
+                company_name=doc.meta.company_name,
+            )
         data_period = doc.meta.data_period or ""
         data_source = doc.meta.data_source or ""
-    elif ProjectCore.study_exists(slug, client_id):
-        doc = _load_study_doc(client_id, slug)
-        data_period = doc.meta.data_period or ""
-        data_source = doc.meta.data_source or ""
+    elif trust_changed:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Study payload not found for slug '{slug}'",
+        )
 
     return {
         "slug": entry.slug,

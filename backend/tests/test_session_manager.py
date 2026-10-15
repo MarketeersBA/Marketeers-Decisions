@@ -103,3 +103,39 @@ class SessionManagerTests(unittest.TestCase):
         self.assertIn("s2", manager._sessions)
 
         manager._stop_event.set()
+
+    def test_sync_study_identity_meta(self) -> None:
+        manager = SessionManager(ttl_seconds=3600, cleanup_interval_seconds=600)
+        mock_meta = MagicMock()
+        mock_meta.study_name = "Old"
+        mock_meta.company_name = "Old Co"
+        mock_project = MagicMock()
+        mock_project._model.doc.meta = mock_meta
+
+        manager._sessions["s1"] = _Session(
+            project=mock_project,
+            slug="Launch_Study",
+            client_id="c1",
+        )
+        other_meta = MagicMock()
+        other_meta.study_name = "Other"
+        other = MagicMock()
+        other._model.doc.meta = other_meta
+        manager._sessions["s2"] = _Session(
+            project=other,
+            slug="Other",
+            client_id="c1",
+        )
+
+        manager.sync_study_identity_meta(
+            "c1",
+            "Launch_Study",
+            study_name="New Name",
+            company_name="New Co",
+        )
+
+        self.assertEqual(mock_meta.study_name, "New Name")
+        self.assertEqual(mock_meta.company_name, "New Co")
+        self.assertEqual(other_meta.study_name, "Other")
+
+        manager._stop_event.set()
