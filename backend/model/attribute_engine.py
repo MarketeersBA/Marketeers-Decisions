@@ -16,7 +16,10 @@ class AttributeEngine:
         if attr.upper() == "WD":
             product.new_wd = float(clean.replace("%", ""))
             if product.new_wd == 0.0:
+                # Legacy changeProductAttributeCombination: WD=0 excludes and clears shares.
                 product.included = False
+                product.new_share = 0.0
+                product.new_preference_share = 0.0
             return
 
         if attr in model.discrete_attrs:
@@ -35,6 +38,15 @@ class AttributeEngine:
                 product.new_attributes[attr] = clean
 
     def include_exclude(self, model: StudyModel, product_name: str, include: bool) -> None:
+        """Include/exclude a product (ports ProjectCore.includeExcludeProductScenarios).
+
+        On exclude, clear scenario share fields so naive all-product aggregates
+        (totals, rebase, FastEvaluator scope volume) do not keep stale values.
+        """
         product = model.get_product(product_name)
-        if product:
-            product.included = include
+        if product is None:
+            return
+        product.included = include
+        if not include:
+            product.new_share = 0.0
+            product.new_preference_share = 0.0

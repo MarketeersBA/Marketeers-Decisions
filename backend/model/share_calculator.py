@@ -23,6 +23,8 @@ def calculate_new_shares(model: StudyModel) -> None:
     total_pref = 0.0
     for p in products:
         if not p.included:
+            p.new_preference_share = 0.0
+            p.new_share = 0.0
             continue
         wd_ratio = 1.0 if p.product_type == "NewProduct" else (
             p.new_wd / p.base_wd if p.base_wd else 0.0

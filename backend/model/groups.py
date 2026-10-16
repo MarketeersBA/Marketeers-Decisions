@@ -40,7 +40,19 @@ def group_metric_rows(model: StudyModel, group_type: str = "Brand") -> list[dict
         n_share = sum(p.new_share for p in included)
         b_share = sum(p.base_share for p in products)
         revenue = sum(p.revenue for p in included)
-        base_rev = sum(p.base_revenue for p in included)
+        # Legacy getGroupBaseRevenue: BaseIncluded (base lineup), not current Included.
+        # Keeps R.Index aligned with S.Index when SKUs are excluded (num shrinks, denom holds).
+        base_flags = {
+            s.name: s.included
+            for s in getattr(model, "_base_snapshot", None) or []
+        }
+
+        def _in_base_lineup(p) -> bool:
+            if p.name in base_flags:
+                return bool(base_flags[p.name])
+            return p.base_share > 0
+
+        base_rev = sum(p.base_revenue for p in products if _in_base_lineup(p))
         row: dict = {
             "Name": group.group_name,
             "GroupType": group.group_type,

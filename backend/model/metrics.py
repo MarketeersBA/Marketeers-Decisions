@@ -58,6 +58,13 @@ def apply_scenario_metrics(model: StudyModel) -> None:
     for p in model.included_products():
         p.value_share = p.value_sales_unit / value_share_unit * 100.0
 
+    for p in model.products:
+        if not p.included:
+            p.revenue = 0.0
+            p.value_sales_unit = 0.0
+            p.value_share = 0.0
+            p.penetration = 0.0
+
     _set_penetration(model)
 
 

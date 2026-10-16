@@ -349,8 +349,11 @@ def _pack_eval_result(
     obj = _objective_from_arrays(
         model, scope_mask, objective, vol, val_sh, rev, cost_by_idx, prices_by_idx
     )
-    target_vol = float(vol[scope_mask].sum())
+    # Match _scope_volume_share / _objective_from_arrays: excluded SKUs contribute 0.
+    included_mask = np.array([p.included for p in model.products], dtype=bool)
+    target_vol = float(vol[scope_mask & included_mask].sum())
     return EvalResult(
+
         objective=obj,
         target_volume_share=target_vol,
         per_sku_volume_share=vol,
