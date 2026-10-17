@@ -9,7 +9,12 @@ import uuid
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from api.deps import get_current_client_id
-from data.excel_importer import ExcelImportError, import_design_sheet, import_hbu_sheet
+from data.excel_importer import (
+    ExcelImportError,
+    collect_design_import_warnings,
+    import_design_sheet,
+    import_hbu_sheet,
+)
 
 router = APIRouter(prefix="/api/wizard", tags=["wizard"])
 
@@ -54,6 +59,7 @@ async def upload_design(
         "attributes": [asdict(a) for a in doc.attributes],
         "groups": [asdict(g) for g in doc.groups],
         "segments": [asdict(s) for s in doc.segments],
+        "warnings": collect_design_import_warnings(doc),
     }
 
 

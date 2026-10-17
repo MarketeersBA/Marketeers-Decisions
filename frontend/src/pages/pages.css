@@ -2037,7 +2037,8 @@
 }
 
 .banner-success,
-.banner-error {
+.banner-error,
+.banner-warn {
   padding: 10px 16px;
   border-radius: 6px;
   font-size: 13px;
@@ -2056,6 +2057,19 @@
 .banner-error .error-title {
   font-weight: 700;
   margin-bottom: 4px;
+}
+.banner-warn {
+  background: #fff8e6;
+  color: #6b4e00;
+  border-color: #e0b84a;
+}
+.banner-warn .warn-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.banner-warn-list {
+  margin: 0;
+  padding-left: 1.1rem;
 }
 
 .review-columns {

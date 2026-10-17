@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import logging
 import math
+import warnings
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -10,6 +12,8 @@ import numpy as np
 
 from model.project_core import ProjectCore
 from model.study_schema import StudyDocument
+
+logger = logging.getLogger(__name__)
 
 
 # ── study data helpers ───────────────────────────────────────────────────────
@@ -170,18 +174,18 @@ def apply_competitor_price_moves(
 def get_calibrated_bounds(
     doc: StudyDocument, product_id: int, base_price: float
 ) -> tuple[float, float]:
-    """Return [lo, hi] from the calibrated price grid, falling back to ±40% of base."""
+    """Return [lo, hi] from Price Attribute Levels only; else ±40% of base with a warning.
+
+    Does not use other conditional grids (e.g. Size) when Price levels are missing.
+    """
     price_rows = [
         r
         for r in doc.conditional_levels
         if r.product_id == product_id
         and ((r.attribute_name or "").strip().lower() == "price")
     ]
-    rows = price_rows or [
-        r for r in doc.conditional_levels if r.product_id == product_id
-    ]
-    if rows:
-        best = max(rows, key=lambda r: len(r.levels))
+    if price_rows:
+        best = max(price_rows, key=lambda r: len(r.levels))
         vals = []
         for v in best.levels.values():
             try:
@@ -192,6 +196,17 @@ def get_calibrated_bounds(
                 pass
         if len(vals) >= 2:
             return float(min(vals)), float(max(vals))
+
+    product_name = next(
+        (p.name for p in doc.products if p.product_id == product_id),
+        f"product_id={product_id}",
+    )
+    msg = (
+        f"No Price Attribute Levels for {product_name!r}; "
+        f"using ±40% of base price ({base_price:g}) for calibrated bounds"
+    )
+    warnings.warn(msg, UserWarning, stacklevel=2)
+    logger.warning(msg)
     lo = max(base_price * 0.6, 0.01)
     hi = base_price * 1.4
     return lo, hi

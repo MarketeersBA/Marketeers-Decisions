@@ -27,6 +27,7 @@ export interface StudyDataSource {
 }
 
 export interface StudyDataSourcesResponse {
+  warnings?: string[];
   sources: StudyDataSource[];
 }
 

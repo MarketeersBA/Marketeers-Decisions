@@ -28,6 +28,7 @@ export function DataSourcesSection({ slug }: DataSourcesSectionProps) {
   const designInputRef = useRef<HTMLInputElement>(null);
   const hbuInputRef = useRef<HTMLInputElement>(null);
   const [rowError, setRowError] = useState<{ id: string; message: string } | null>(null);
+  const [rowWarnings, setRowWarnings] = useState<string[]>([]);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const refreshSessionIfActive = async () => {
@@ -46,10 +47,12 @@ export function DataSourcesSection({ slug }: DataSourcesSectionProps) {
   const handleFile = async (source: StudyDataSource, file: File | null | undefined) => {
     if (!file) return;
     setRowError(null);
+    setRowWarnings([]);
     setUpdatingId(source.id);
     try {
       if (source.id === "design") {
-        await replaceDesign.mutateAsync(file);
+        const res = await replaceDesign.mutateAsync(file);
+        setRowWarnings(res.warnings ?? []);
       } else {
         await replaceHbu.mutateAsync(file);
       }
@@ -109,6 +112,16 @@ export function DataSourcesSection({ slug }: DataSourcesSectionProps) {
           e.target.value = "";
         }}
       />
+      {rowWarnings.length > 0 ? (
+        <div className="banner-warn mb-16" role="status">
+          <div className="warn-title">Import Warning</div>
+          <ul className="banner-warn-list">
+            {rowWarnings.map((w) => (
+              <li key={w}>{w}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <ul className="data-sources-list">
         {sources.map((source) => {
           const busy = updatingId === source.id;

@@ -36,6 +36,48 @@ class ExcelImportError(ValueError):
     pass
 
 
+def collect_design_import_warnings(doc: StudyDocument) -> list[str]:
+    """Soft warnings after a successful design parse (shown to the user at upload)."""
+    out: list[str] = []
+    has_price = any(
+        a.attr_type == "Conditional" and (a.name or "").strip().lower() == "price"
+        for a in doc.attributes
+    )
+    if not has_price or not doc.products:
+        return out
+
+    price_pids = {
+        r.product_id
+        for r in doc.conditional_levels
+        if (r.attribute_name or "").strip().lower() == "price"
+        and sum(1 for v in r.levels.values() if _positive_float(v)) >= 2
+    }
+    missing = [p.name for p in doc.products if p.product_id not in price_pids]
+    if not missing:
+        return out
+
+    if len(missing) == len(doc.products):
+        out.append(
+            "No Price Attribute Levels found for any product. "
+            "Price bounds will fall back to ±40% of each SKU's base price."
+        )
+    else:
+        sample = ", ".join(missing[:5])
+        more = f" (+{len(missing) - 5} more)" if len(missing) > 5 else ""
+        out.append(
+            f"Price Attribute Levels missing for {len(missing)} product(s): "
+            f"{sample}{more}. Those SKUs will use ±40% of base price for calibrated bounds."
+        )
+    return out
+
+
+def _positive_float(value: Any) -> bool:
+    try:
+        return float(value) > 0
+    except (TypeError, ValueError):
+        return False
+
+
 def _seek_start(source: FileSource) -> None:
     if hasattr(source, "seek"):
         source.seek(0)

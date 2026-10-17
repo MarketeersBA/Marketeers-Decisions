@@ -14,7 +14,12 @@ from api.schemas import CreateStudyRequest, PatchStudyMetaRequest, UpdateStudyRe
 from api.sessions import session_manager
 from api.study_access import ensure_study_access
 from config import get_storage, slugify
-from data.excel_importer import ExcelImportError, import_design_sheet, import_hbu_sheet
+from data.excel_importer import (
+    ExcelImportError,
+    collect_design_import_warnings,
+    import_design_sheet,
+    import_hbu_sheet,
+)
 from data.study_reingest import apply_hbu_replace, merge_design_replace
 from data.study_writer import StudyConflictError, persist_hbu_dataframe, persist_study_document, write_study
 from db.repository import StudyRepository
@@ -143,7 +148,11 @@ async def replace_study_design_source(
     doc = merge_design_replace(existing, imported, file.filename or "")
     persist_study_document(slug, doc, client_id)
     session_manager.reload_study_for_slug(client_id, slug)
-    return _data_sources_payload(doc)
+    payload = _data_sources_payload(doc)
+    warnings = collect_design_import_warnings(doc)
+    if warnings:
+        payload["warnings"] = warnings
+    return payload
 
 
 @router.post("/{slug}/data-sources/hbu")

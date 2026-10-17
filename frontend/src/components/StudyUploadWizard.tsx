@@ -74,6 +74,7 @@ export function StudyUploadWizard({ onCancel, embedded = false }: StudyUploadWiz
 
   const [activeTable, setActiveTable] = useState<"products" | "attributes" | "groups" | "segments" | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [warningMsgs, setWarningMsgs] = useState<string[]>([]);
   const [conflictError, setConflictError] = useState<string | null>(null);
 
   const designInputRef = useRef<HTMLInputElement>(null);
@@ -83,6 +84,7 @@ export function StudyUploadWizard({ onCancel, embedded = false }: StudyUploadWiz
     if (e.target.files && e.target.files.length > 0) {
       setDesignFile(e.target.files[0]);
       setErrorMsg(null);
+      setWarningMsgs([]);
     }
   };
 
@@ -96,6 +98,7 @@ export function StudyUploadWizard({ onCancel, embedded = false }: StudyUploadWiz
   const handleParseDesign = async () => {
     if (!designFile) return;
     setErrorMsg(null);
+    setWarningMsgs([]);
     try {
       const res = await uploadDesignMutation.mutateAsync(designFile);
       setWizardId(res.wizard_id);
@@ -126,6 +129,7 @@ export function StudyUploadWizard({ onCancel, embedded = false }: StudyUploadWiz
       );
       setSizeUnitSelect(size.select);
       setSizeUnitCustom(size.custom);
+      setWarningMsgs(res.warnings ?? []);
       setStep(1);
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to parse design sheet.");
@@ -274,6 +278,17 @@ export function StudyUploadWizard({ onCancel, embedded = false }: StudyUploadWiz
         <div className="banner-error mb-16" role="alert">
           <div className="error-title">Import Error</div>
           <div>{errorMsg}</div>
+        </div>
+      )}
+
+      {warningMsgs.length > 0 && (
+        <div className="banner-warn mb-16" role="status">
+          <div className="warn-title">Import Warning</div>
+          <ul className="banner-warn-list">
+            {warningMsgs.map((w) => (
+              <li key={w}>{w}</li>
+            ))}
+          </ul>
         </div>
       )}
 

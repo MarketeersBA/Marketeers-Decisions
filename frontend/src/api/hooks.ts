@@ -442,6 +442,7 @@ export function useUploadDesign() {
         attributes: any[];
         groups: any[];
         segments: any[];
+        warnings?: string[];
       }>("/api/wizard/design", fd);
     },
   });

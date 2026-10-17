@@ -41,9 +41,9 @@ def _create_demo_study() -> str:
             ProductDef(3, "Product C", "", True, 25.0, 1.0, base_attributes={"Price": 8.0}),
         ],
         conditional_levels=[
-            ConditionalLevelRow(1, "Product A", {"Level 1": 10.0, "Level 2": 12.0}),
-            ConditionalLevelRow(2, "Product B", {"Level 1": 12.0, "Level 2": 14.0}),
-            ConditionalLevelRow(3, "Product C", {"Level 1": 8.0, "Level 2": 10.0}),
+            ConditionalLevelRow(1, "Product A", {"Level 1": 10.0, "Level 2": 12.0}, "Price"),
+            ConditionalLevelRow(2, "Product B", {"Level 1": 12.0, "Level 2": 14.0}, "Price"),
+            ConditionalLevelRow(3, "Product C", {"Level 1": 8.0, "Level 2": 10.0}, "Price"),
         ],
     )
     rng = np.random.default_rng(42)

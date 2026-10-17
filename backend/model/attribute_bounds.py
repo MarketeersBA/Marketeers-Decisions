@@ -1,7 +1,8 @@
 """Calibrated attribute bounds for Simulator inline validation.
 
 Reuses study conditional grids (same source as optimizer Price bounds).
-Does not invent ranges beyond WD's fixed 0–100 and Price ±40% fallback.
+Does not invent ranges beyond WD's fixed 0–100 and Price ±40% fallback
+(when Price Attribute Levels are missing; warns).
 """
 
 from __future__ import annotations
