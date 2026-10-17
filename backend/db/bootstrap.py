@@ -25,8 +25,8 @@ def _apply_schema() -> None:
     backend_dir = Path(__file__).resolve().parent.parent
     cfg = Config(str(backend_dir / "alembic.ini"))
     if insp.has_table("clients") and not insp.has_table("alembic_version"):
-        command.stamp(cfg, "head")
-        return
+        # Legacy DBs created before Alembic: mark baseline schema, then apply newer revisions.
+        command.stamp(cfg, "0001_initial")
     upgrade_head()
 
 

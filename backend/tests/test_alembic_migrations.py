@@ -31,3 +31,6 @@ def test_alembic_upgrade_head_sqlite(tmp_path: Path) -> None:
     assert insp.has_table("studies")
     assert insp.has_table("optimizer_jobs")
     assert insp.has_table("alembic_version")
+    job_cols = {c["name"] for c in insp.get_columns("optimizer_jobs")}
+    assert "finished_at" in job_cols
+    assert "payload" in job_cols

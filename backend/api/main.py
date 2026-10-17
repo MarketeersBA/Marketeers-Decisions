@@ -37,6 +37,12 @@ FRONTEND_DIST = Path(__file__).resolve().parent / "spa_dist"
 def create_app() -> FastAPI:
     ensure_directories()
     init_db()
+    from db.repository import JOB_RETENTION_DAYS, OptimizerJobRepository
+
+    job_repo = OptimizerJobRepository()
+    job_repo.reconcile_interrupted()
+    job_repo.cleanup_expired(max_age_days=JOB_RETENTION_DAYS)
+
     app = FastAPI(title="Market Simulator API", version="0.1.0")
 
     app.add_middleware(ClientContextMiddleware)

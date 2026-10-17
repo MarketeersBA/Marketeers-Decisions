@@ -49,9 +49,14 @@ class JobRecord:
     estimated_evals: int = 100
     best_obj: float = 0.0
     result: OptResult | None = None
+    result_payload: dict | None = None
     error: str | None = None
     request: RunOptimizerRequest | None = None
     cancel_event: threading.Event = field(default_factory=threading.Event)
+
+
+_TERMINAL_STATUSES = frozenset({"done", "cancelled", "error"})
+_PERSIST_UNSET = object()
 
 
 def _bound_hit(optimal: float, lo: float, hi: float) -> str | None:
@@ -469,23 +474,53 @@ _jobs: dict[str, JobRecord] = {}
 _executor = ThreadPoolExecutor(max_workers=2)
 
 
-def _persist_job(job: JobRecord) -> None:
+def _baseline_fingerprint(
+    slug: str, client_id: str, req: RunOptimizerRequest
+) -> dict:
+    """Pin study/scenario identity so save can refuse stale results."""
+    project = _get_project(slug, client_id)
+    meta = project.doc.meta if project.doc else None
+    fp: dict = {
+        "design_source_updated_at": getattr(meta, "design_source_updated_at", "") or "",
+        "hbu_source_updated_at": getattr(meta, "hbu_source_updated_at", "") or "",
+        "ingested_at": getattr(meta, "ingested_at", "") or "",
+        "base_scenario": req.base_scenario,
+        "base_scenario_created_at": None,
+    }
+    if req.base_scenario:
+        try:
+            scenario = ScenarioStore(slug, client_id).load(req.base_scenario)
+            fp["base_scenario_created_at"] = scenario.created_at
+        except FileNotFoundError:
+            pass
+    return fp
+
+
+def _request_dump(req: RunOptimizerRequest | None) -> dict | None:
+    if req is None:
+        return None
+    if hasattr(req, "model_dump"):
+        return req.model_dump()
+    return None
+
+
+def _persist_job(job: JobRecord, *, payload: object = _PERSIST_UNSET) -> None:
     from db.repository import OptimizerJobRepository
 
     client_id = job.client_id
     study_id = OptimizerJobRepository().study_id_for_slug(client_id, job.slug)
     if not study_id:
         return
-    OptimizerJobRepository().upsert(
-        job.job_id,
-        client_id,
-        study_id,
-        status=job.status,
-        evals=job.evals,
-        estimated_evals=job.estimated_evals,
-        best_obj=job.best_obj,
-        error=job.error,
-    )
+    kwargs: dict = {
+        "status": job.status,
+        "evals": job.evals,
+        "estimated_evals": job.estimated_evals,
+        "best_obj": job.best_obj,
+        "error": job.error,
+    }
+    if payload is not _PERSIST_UNSET:
+        kwargs["payload"] = payload
+    OptimizerJobRepository().upsert(job.job_id, client_id, study_id, **kwargs)
 
 
 def _memory_job(slug: str, job_id: str, client_id: str) -> JobRecord:
@@ -493,6 +528,40 @@ def _memory_job(slug: str, job_id: str, client_id: str) -> JobRecord:
     if job is None or job.client_id != client_id or job.slug != slug:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
+
+
+def _completed_job_artifacts(
+    slug: str, job_id: str, client_id: str
+) -> tuple[RunOptimizerRequest, dict, dict | None]:
+    """Return (request, result_payload, baseline) from memory or DB."""
+    job = _jobs.get(job_id)
+    if job is not None and job.client_id == client_id and job.slug == slug:
+        if job.status != "done":
+            raise HTTPException(status_code=400, detail="Job not completed")
+        if job.result_payload and job.request:
+            baseline = None
+            return job.request, job.result_payload, baseline
+        if job.result and job.request:
+            return (
+                job.request,
+                _build_result_payload(slug, job.result, job.request, client_id),
+                None,
+            )
+        raise HTTPException(status_code=400, detail="Job not completed")
+
+    from db.repository import OptimizerJobRepository
+
+    row = OptimizerJobRepository().get(job_id, client_id)
+    if not row or row.get("slug") != slug:
+        raise HTTPException(status_code=404, detail="Job not found")
+    stored = row.get("payload") or {}
+    if row.get("status") != "done" or not stored.get("result") or not stored.get("request"):
+        raise HTTPException(status_code=400, detail="Job not completed")
+    return (
+        RunOptimizerRequest(**stored["request"]),
+        stored["result"],
+        stored.get("baseline"),
+    )
 
 
 @router.get("/context")
@@ -856,6 +925,18 @@ def _run_job(job: JobRecord, req: RunOptimizerRequest) -> None:
         res.duration_ms = (_time.perf_counter() - t0) * 1000.0
         job.result = res
         job.status = "done"
+        try:
+            job.result_payload = _build_result_payload(job.slug, res, req, job.client_id)
+        except Exception:
+            # Solver finished; keep status=done even if client payload assembly fails.
+            job.result_payload = {
+                "prices": res.prices,
+                "objective_value": res.objective_value,
+                "baseline_value": res.baseline_value,
+                "uplift_pct": res.uplift_pct,
+                "n_evals": res.n_evals,
+                "sku_rows": [],
+            }
     except InterruptedError:
         job.status = "cancelled"
     except Exception as e:
@@ -863,7 +944,27 @@ def _run_job(job: JobRecord, req: RunOptimizerRequest) -> None:
         job.error = str(e)
     finally:
         try:
-            _persist_job(job)
+            terminal_payload = _PERSIST_UNSET
+            if job.status in _TERMINAL_STATUSES:
+                request_data = _request_dump(job.request)
+                if job.status == "done" and job.result_payload is not None and request_data is not None:
+                    baseline = None
+                    try:
+                        baseline = _baseline_fingerprint(job.slug, job.client_id, job.request)
+                    except Exception:
+                        pass
+                    terminal_payload = {
+                        "request": request_data,
+                        "result": job.result_payload,
+                        "baseline": baseline,
+                    }
+                elif request_data is not None:
+                    terminal_payload = {
+                        "request": request_data,
+                        "result": None,
+                        "baseline": None,
+                    }
+            _persist_job(job, payload=terminal_payload)
         finally:
             current_client_id.reset(context_token)
 
@@ -908,8 +1009,11 @@ def get_job(slug: str, job_id: str, client_id: str = Depends(get_current_client_
         row = OptimizerJobRepository().get(job_id, client_id)
         if not row or row.get("slug") != slug:
             raise HTTPException(status_code=404, detail="Job not found")
+        stored = row.pop("payload", None) or {}
         row.pop("slug", None)
-        return {**row, "result": None}
+        row.pop("finished_at", None)
+        result = stored.get("result") if row.get("status") == "done" else None
+        return {**row, "result": result}
 
     job = _memory_job(slug, job_id, client_id)
     payload = {
@@ -921,8 +1025,11 @@ def get_job(slug: str, job_id: str, client_id: str = Depends(get_current_client_
         "result": None,
     }
 
-    if job.status == "done" and job.result and job.request:
-        payload["result"] = _build_result_payload(slug, job.result, job.request, client_id)
+    if job.status == "done":
+        if job.result_payload is not None:
+            payload["result"] = job.result_payload
+        elif job.result and job.request:
+            payload["result"] = _build_result_payload(slug, job.result, job.request, client_id)
     return payload
 
 
@@ -932,7 +1039,13 @@ def cancel_job(slug: str, job_id: str, client_id: str = Depends(get_current_clie
     if job.status == "running":
         job.cancel_event.set()
         job.status = "cancelled"
-        _persist_job(job)
+        request_data = _request_dump(job.request)
+        terminal = (
+            {"request": request_data, "result": None, "baseline": None}
+            if request_data is not None
+            else _PERSIST_UNSET
+        )
+        _persist_job(job, payload=terminal)
     return {"ok": True}
 
 
@@ -943,14 +1056,18 @@ def save_scenario(
     body: SaveOptimizerScenarioRequest,
     client_id: str = Depends(get_current_client_id),
 ) -> dict:
-    job = _memory_job(slug, job_id, client_id)
-    if job.status != "done" or not job.result or not job.request:
-        raise HTTPException(status_code=400, detail="Job not completed")
+    req, result_payload, baseline = _completed_job_artifacts(slug, job_id, client_id)
+    if baseline is not None and baseline != _baseline_fingerprint(slug, client_id, req):
+        raise HTTPException(
+            status_code=409,
+            detail="Study data changed since this optimization; re-run before saving.",
+        )
 
+    prices = result_payload.get("prices") or {}
     project = _prepare_optimizer_project(
-        slug, client_id=client_id, **_setup_from_request(job.request)
+        slug, client_id=client_id, **_setup_from_request(req)
     )
-    _apply_optimal_prices(project, job.result.prices)
+    _apply_optimal_prices(project, {str(k): float(v) for k, v in prices.items()})
 
     store = ScenarioStore(slug, client_id)
     name = body.name.strip() or store.next_optimization_result_name()
@@ -965,11 +1082,7 @@ def export_results(
     job_id: str,
     client_id: str = Depends(get_current_client_id),
 ) -> StreamingResponse:
-    job = _memory_job(slug, job_id, client_id)
-    if job.status != "done" or not job.result or not job.request:
-        raise HTTPException(status_code=400, detail="Job not completed")
-
-    result_payload = _build_result_payload(slug, job.result, job.request, client_id)
+    req, result_payload, _baseline = _completed_job_artifacts(slug, job_id, client_id)
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow([
@@ -978,7 +1091,7 @@ def export_results(
         "Base Revenue", "New Revenue", "Rev Δ%",
         "Base Val.Share", "New Val.Share",
     ])
-    for row in result_payload["sku_rows"]:
+    for row in result_payload.get("sku_rows") or []:
         writer.writerow([
             row["name"],
             "Y" if row["optimized"] else "N",
@@ -995,7 +1108,7 @@ def export_results(
             f"{row.get('new_val_share', 0):.4f}",
         ])
 
-    brand = job.request.brand.replace(" ", "_")
+    brand = req.brand.replace(" ", "_")
     filename = f"{brand}_optimized_prices.csv"
     return StreamingResponse(
         iter([output.getvalue()]),

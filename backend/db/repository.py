@@ -3,14 +3,24 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 
 from config import slugify
 from db.models import ClientRow, OptimizerJobRow, StudyRow, new_uuid
 from db.session import session_scope
+
+# Sentinel so upsert can leave payload / finished_at unchanged on progress heartbeats.
+_UNSET: Any = object()
+
+INTERRUPTED_JOB_ERROR = (
+    "Optimization was interrupted by a server restart. Run it again."
+)
+JOB_RETENTION_DAYS = 7
+_TERMINAL_STATUSES = frozenset({"done", "cancelled", "error"})
 
 
 @dataclass
@@ -235,7 +245,8 @@ class OptimizerJobRepository:
         estimated_evals: int = 0,
         best_obj: float = 0.0,
         error: str | None = None,
-        payload: dict | None = None,
+        payload: Any = _UNSET,
+        finished_at: Any = _UNSET,
     ) -> None:
         with session_scope() as session:
             row = session.get(OptimizerJobRow, job_id)
@@ -251,8 +262,14 @@ class OptimizerJobRepository:
             row.estimated_evals = estimated_evals
             row.best_obj = best_obj
             row.error = error
-            row.payload = payload
-            row.updated_at = datetime.now(timezone.utc)
+            if payload is not _UNSET:
+                row.payload = payload
+            now = datetime.now(timezone.utc)
+            if finished_at is not _UNSET:
+                row.finished_at = finished_at
+            elif status in _TERMINAL_STATUSES and row.finished_at is None:
+                row.finished_at = now
+            row.updated_at = now
 
     def get(self, job_id: str, client_id: str) -> dict | None:
         with session_scope() as session:
@@ -266,6 +283,8 @@ class OptimizerJobRepository:
                 "estimated_evals": row.estimated_evals,
                 "best_obj": row.best_obj,
                 "error": row.error,
+                "payload": row.payload,
+                "finished_at": row.finished_at.isoformat() if row.finished_at else None,
                 "slug": study.slug if study else None,
             }
 
@@ -279,3 +298,36 @@ class OptimizerJobRepository:
                 )
             )
             return row.id if row else None
+
+    def reconcile_interrupted(self, error: str = INTERRUPTED_JOB_ERROR) -> int:
+        """Mark leftover running jobs as error after a process restart."""
+        now = datetime.now(timezone.utc)
+        with session_scope() as session:
+            rows = session.scalars(
+                select(OptimizerJobRow).where(OptimizerJobRow.status == "running")
+            ).all()
+            for row in rows:
+                row.status = "error"
+                row.error = error
+                row.finished_at = now
+                row.updated_at = now
+            return len(rows)
+
+    def cleanup_expired(self, max_age_days: int = JOB_RETENTION_DAYS) -> int:
+        """Delete terminal jobs older than the retention window."""
+        cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
+        with session_scope() as session:
+            # Prefer finished_at; fall back to updated_at for rows written before the column existed.
+            result = session.execute(
+                delete(OptimizerJobRow).where(
+                    OptimizerJobRow.status.in_(tuple(_TERMINAL_STATUSES)),
+                    (
+                        (OptimizerJobRow.finished_at.is_not(None) & (OptimizerJobRow.finished_at < cutoff))
+                        | (
+                            OptimizerJobRow.finished_at.is_(None)
+                            & (OptimizerJobRow.updated_at < cutoff)
+                        )
+                    ),
+                )
+            )
+            return int(result.rowcount or 0)
