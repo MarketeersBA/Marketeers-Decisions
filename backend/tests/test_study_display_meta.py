@@ -4,21 +4,12 @@ from __future__ import annotations
 
 import json
 
-import pytest
 from fastapi.testclient import TestClient
 
 from api.main import app
 from config import study_json_path
-from model.project_core import ProjectCore
 
 client = TestClient(app)
-
-
-@pytest.fixture
-def demo_slug() -> str:
-    if not ProjectCore.study_exists("Demo_Study"):
-        pytest.skip("Demo_Study not available")
-    return "Demo_Study"
 
 
 def test_get_study_meta_defaults(demo_slug: str) -> None:

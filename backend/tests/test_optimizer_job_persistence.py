@@ -17,24 +17,10 @@ from db.repository import (
     OptimizerJobRepository,
 )
 from db.session import session_scope
-from model.project_core import ProjectCore
-
 client = TestClient(app)
 
 CLIENT_ID = MARKET_SIM_DEV_CLIENT_ID
 SLUG = "_pytest_opt_jobs"
-
-
-@pytest.fixture
-def demo_slug() -> str:
-    if ProjectCore.study_exists("Demo_Study"):
-        return "Demo_Study"
-    from config import STUDIES_DIR
-
-    for folder in sorted(STUDIES_DIR.iterdir()):
-        if folder.is_dir() and ProjectCore.study_exists(folder.name):
-            return folder.name
-    pytest.skip("no study available")
 
 
 @pytest.fixture

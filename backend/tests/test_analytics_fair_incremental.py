@@ -13,13 +13,6 @@ from model.analytics.incremental import (
 from model.project_core import ProjectCore
 
 
-@pytest.fixture
-def demo_slug() -> str:
-    if not ProjectCore.study_exists("Demo_Study"):
-        pytest.skip("Demo_Study not available")
-    return "Demo_Study"
-
-
 def test_fair_share_skus_has_index(demo_slug: str) -> None:
     project = ProjectCore(demo_slug)
     project.initialize()

@@ -8,7 +8,12 @@ import pandas as pd
 import pytest
 
 from data.excel_importer import ExcelImportError, import_design_sheet
-from data.unit_costs import UnitCostImportError, parse_unit_cost_table, resolve_unit_cost
+from data.unit_costs import (
+    UnitCostImportError,
+    load_unit_cost_frame,
+    parse_unit_cost_table,
+    resolve_unit_cost,
+)
 
 
 def _workbook(sheets: dict[str, pd.DataFrame]) -> BytesIO:
@@ -42,6 +47,22 @@ def test_parse_accepts_partial_coverage_and_zero() -> None:
 def test_parse_accepts_sku_name_column() -> None:
     frame = pd.DataFrame({"SKU Name": ["Alpha"], "Unit Cost": [2.25]})
     assert parse_unit_cost_table(frame, {"Alpha"}) == {"Alpha": 2.25}
+
+
+def test_load_unit_cost_frame_from_excel_sheet() -> None:
+    buf = _workbook(
+        {
+            "Other": pd.DataFrame({"x": [1]}),
+            "Unit Costs": pd.DataFrame({"SKU": ["Alpha"], "Unit Cost": [3.1]}),
+        }
+    )
+    frame = load_unit_cost_frame(buf.getvalue(), "costs.xlsx")
+    assert parse_unit_cost_table(frame, {"Alpha"}) == {"Alpha": 3.1}
+
+
+def test_load_unit_cost_frame_from_csv() -> None:
+    frame = load_unit_cost_frame(b"SKU,Unit Cost\nAlpha,1.2\n", "costs.csv")
+    assert parse_unit_cost_table(frame, {"Alpha"}) == {"Alpha": 1.2}
 
 
 def test_parse_rejects_unknown_negative_and_blank() -> None:

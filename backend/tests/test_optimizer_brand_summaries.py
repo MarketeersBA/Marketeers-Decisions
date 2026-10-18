@@ -2,25 +2,11 @@
 
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
 
 from api.main import app
-from model.project_core import ProjectCore
 
 client = TestClient(app)
-
-
-@pytest.fixture
-def demo_slug() -> str:
-    from config import STUDIES_DIR
-
-    if ProjectCore.study_exists("Demo_Study"):
-        return "Demo_Study"
-    for folder in sorted(STUDIES_DIR.iterdir()):
-        if folder.is_dir() and ProjectCore.study_exists(folder.name):
-            return folder.name
-    pytest.skip("no study available")
 
 
 def test_brand_summaries_matches_per_brand(demo_slug: str) -> None:

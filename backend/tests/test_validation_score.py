@@ -12,13 +12,6 @@ from model.project_core import ProjectCore
 client = TestClient(app)
 
 
-@pytest.fixture
-def demo_slug() -> str:
-    if not ProjectCore.study_exists("Demo_Study"):
-        pytest.skip("Demo_Study not available")
-    return "Demo_Study"
-
-
 def _save_legacy_validation_scenario(demo_slug: str, name: str) -> None:
     """Persist a validation-flagged scenario directly (API save with validation=true is deprecated)."""
     from data.scenario_store import ScenarioStore

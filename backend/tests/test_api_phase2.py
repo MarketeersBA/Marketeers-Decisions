@@ -5,20 +5,11 @@ from __future__ import annotations
 import io
 
 import pandas as pd
-import pytest
 from fastapi.testclient import TestClient
 
 from api.main import app
-from model.project_core import ProjectCore
 
 client = TestClient(app)
-
-
-@pytest.fixture
-def demo_slug() -> str:
-    if not ProjectCore.study_exists("Demo_Study"):
-        pytest.skip("Demo_Study not available")
-    return "Demo_Study"
 
 
 def test_study_patch_and_export(demo_slug: str) -> None:

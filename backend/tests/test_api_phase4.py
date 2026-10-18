@@ -13,13 +13,6 @@ from model.project_core import ProjectCore
 client = TestClient(app)
 
 
-@pytest.fixture
-def demo_slug() -> str:
-    if not ProjectCore.study_exists("Demo_Study"):
-        pytest.skip("Demo_Study not available")
-    return "Demo_Study"
-
-
 def test_multi_segment_and_filtering(demo_slug: str) -> None:
     r = client.post("/api/sessions", json={"slug": demo_slug})
     assert r.status_code == 200

@@ -17,13 +17,6 @@ from model.project_core import ProjectCore
 client = TestClient(app)
 
 
-@pytest.fixture
-def demo_slug() -> str:
-    if not ProjectCore.study_exists("Demo_Study"):
-        pytest.skip("Demo_Study not available")
-    return "Demo_Study"
-
-
 def _build_validation_xlsx(
     *,
     name: str,

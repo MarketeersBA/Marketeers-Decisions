@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import pytest
 
-from config import STUDIES_DIR
 from model.corridor_preview import _current_price, _product_id, corridor_preview
 from model.optimizer import (
     get_calibrated_bounds,
@@ -12,16 +11,6 @@ from model.optimizer import (
     get_optimizer_group_types,
 )
 from model.project_core import ProjectCore
-
-
-@pytest.fixture
-def demo_slug() -> str:
-    if ProjectCore.study_exists("Demo_Study"):
-        return "Demo_Study"
-    for folder in sorted(STUDIES_DIR.iterdir()):
-        if folder.is_dir() and ProjectCore.study_exists(folder.name):
-            return folder.name
-    pytest.skip("no study available")
 
 
 def _explicit_costs(project: ProjectCore, skus: list[str]) -> dict[str, float]:

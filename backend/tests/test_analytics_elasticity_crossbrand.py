@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from model.analytics.cross_brand import (
     cross_brand_interaction_per_group,
     cross_brand_interaction_per_product,
@@ -16,13 +14,6 @@ from model.analytics.elasticity import (
 )
 from model.project_core import ProjectCore
 from model.study_schema import GroupDef
-
-
-@pytest.fixture
-def demo_slug() -> str:
-    if not ProjectCore.study_exists("Demo_Study"):
-        pytest.skip("Demo_Study not available")
-    return "Demo_Study"
 
 
 def _ensure_brand_groups(project: ProjectCore) -> None:

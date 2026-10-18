@@ -1,4 +1,4 @@
-"""Margin floor, movement cap, shelf snap, and limited_by attribution."""
+"""Margin floor, limited_by attribution, and menu construction guardrails."""
 
 from __future__ import annotations
 
@@ -10,7 +10,6 @@ from model.optimizer import (
     _constraints_ok,
     _sku_limited_by,
     apply_guardrail_bounds,
-    apply_shelf_snap,
     _margin_floor_price,
 )
 
@@ -35,14 +34,15 @@ def test_margin_floor_price() -> None:
     assert abs(_margin_floor_price(5.8, 0.30) - (5.8 / 0.70)) < 1e-9
 
 
-def test_apply_guardrail_tightens_by_margin_and_movement() -> None:
-    spec = _spec(min_margin_pct=0.30, max_price_movement_pct=0.15)
+def test_apply_guardrail_tightens_by_margin() -> None:
+    spec = _spec(min_margin_pct=0.30)
     msgs = apply_guardrail_bounds(spec)
     assert msgs == []
     a = spec.bounds[0]
-    # movement: 10 * 0.85 = 8.5; margin: 5.8/0.7 ≈ 8.286 → lo = max(5, 8.5, 8.286) = 8.5
-    assert abs(a.lo - 8.5) < 1e-9
-    assert abs(a.hi - 11.5) < 1e-9
+    floor = 5.8 / 0.70
+    # lo = max(5.0, margin floor); hi unchanged
+    assert abs(a.lo - floor) < 1e-9
+    assert abs(a.hi - 20.0) < 1e-9
 
 
 def test_margin_rejects_below_floor() -> None:
@@ -60,14 +60,6 @@ def test_limited_by_margin_floor() -> None:
     assert floor is not None
     limited = _sku_limited_by(spec, {"A": floor, "B": 15.0})
     assert limited.get("A") == "margin_floor"
-
-
-def test_shelf_snap_picks_nearby_ending() -> None:
-    spec = _spec(shelf_snap=True, shelf_endings=[0.0, 0.49, 0.95, 0.99], shelf_step=0.05)
-    # No other constraints — snap 10.273 → near 10.29 / 10.25 / 10.00
-    out = apply_shelf_snap(spec, {"A": 10.273, "B": 15.0})
-    assert out["A"] != 10.273
-    assert abs(out["A"] - round(out["A"], 2)) < 1e-9
 
 
 def test_menu_ceil_margin_floor_survives_cent_rounding() -> None:
