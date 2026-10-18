@@ -56,6 +56,7 @@ class JobRecord:
     best_obj: float = 0.0
     result: OptResult | None = None
     result_payload: dict | None = None
+    baseline: dict | None = None
     error: str | None = None
     request: RunOptimizerRequest | None = None
     cancel_event: threading.Event = field(default_factory=threading.Event)
@@ -492,6 +493,7 @@ def _baseline_fingerprint(
         "design_source_updated_at": getattr(meta, "design_source_updated_at", "") or "",
         "hbu_source_updated_at": getattr(meta, "hbu_source_updated_at", "") or "",
         "ingested_at": getattr(meta, "ingested_at", "") or "",
+        "unit_cost_updated_at": getattr(meta, "unit_cost_updated_at", "") or "",
         "base_scenario": req.base_scenario,
         "base_scenario_created_at": None,
     }
@@ -547,13 +549,12 @@ def _completed_job_artifacts(
         if job.status != "done":
             raise HTTPException(status_code=400, detail="Job not completed")
         if job.result_payload and job.request:
-            baseline = None
-            return job.request, job.result_payload, baseline
+            return job.request, job.result_payload, job.baseline
         if job.result and job.request:
             return (
                 job.request,
                 _build_result_payload(slug, job.result, job.request, client_id),
-                None,
+                job.baseline,
             )
         raise HTTPException(status_code=400, detail="Job not completed")
 
@@ -947,6 +948,10 @@ def _run_job(job: JobRecord, req: RunOptimizerRequest) -> None:
                 "n_evals": res.n_evals,
                 "sku_rows": [],
             }
+        try:
+            job.baseline = _baseline_fingerprint(job.slug, job.client_id, req)
+        except Exception:
+            job.baseline = None
     except InterruptedError:
         job.status = "cancelled"
     except Exception as e:
@@ -958,15 +963,10 @@ def _run_job(job: JobRecord, req: RunOptimizerRequest) -> None:
             if job.status in _TERMINAL_STATUSES:
                 request_data = _request_dump(job.request)
                 if job.status == "done" and job.result_payload is not None and request_data is not None:
-                    baseline = None
-                    try:
-                        baseline = _baseline_fingerprint(job.slug, job.client_id, job.request)
-                    except Exception:
-                        pass
                     terminal_payload = {
                         "request": request_data,
                         "result": job.result_payload,
-                        "baseline": baseline,
+                        "baseline": job.baseline,
                     }
                 elif request_data is not None:
                     terminal_payload = {
@@ -1091,7 +1091,7 @@ def save_scenario(
     client_id: str = Depends(get_current_client_id),
 ) -> dict:
     req, result_payload, baseline = _completed_job_artifacts(slug, job_id, client_id)
-    if baseline is not None and baseline != _baseline_fingerprint(slug, client_id, req):
+    if baseline is None or baseline != _baseline_fingerprint(slug, client_id, req):
         raise HTTPException(
             status_code=409,
             detail="Study data changed since this optimization; re-run before saving.",
