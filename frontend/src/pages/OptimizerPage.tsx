@@ -266,7 +266,6 @@ interface Product {
   revenue: number;
 }
 
-/** Fallback unit cost when the study exposes none, as a share of base price. */
 /** Shock focus reference SKU price by this factor; matches analytics cross-brand default up-move. */
 const PRICE_SHOCK_MULT = 1.1;
 const PRICE_SHOCK_PCT = Math.round((PRICE_SHOCK_MULT - 1) * 100);
@@ -2118,7 +2117,7 @@ export function OptimizerPage() {
     if (bounds.filter((b) => b.included).length === 0) return;
     if (objective === "Margin" && missingUnitCostNames.length > 0) {
       setRunError(
-        `Unit costs are missing for ${missingUnitCostNames.slice(0, 8).join(", ")}. Add a Unit Costs sheet to the design workbook, or upload a CSV on Data Hub.`,
+        `Unit costs are missing for ${missingUnitCostNames.slice(0, 8).join(", ")}. Add a Unit Costs sheet to the design workbook, or upload a CSV or Excel file on Data Hub.`,
       );
       return;
     }
@@ -2533,8 +2532,8 @@ export function OptimizerPage() {
                 <div className="opt-note opt-note-warn">
                   Unit costs are missing for {missingUnitCostNames.length} selected SKU
                   {missingUnitCostNames.length === 1 ? "" : "s"}. Add a Unit Costs sheet to the design
-                  workbook, or upload a CSV on Data Hub. The margin floor stays off until every selected
-                  SKU has a cost.
+                  workbook, or upload a CSV or Excel file on Data Hub. The margin floor stays off until
+                  every selected SKU has a cost.
                 </div>
               ) : null}
             </div>

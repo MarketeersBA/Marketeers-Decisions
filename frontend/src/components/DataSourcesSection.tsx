@@ -120,7 +120,7 @@ export function DataSourcesSection({ slug }: DataSourcesSectionProps) {
       <input
         ref={unitCostInputRef}
         type="file"
-        accept=".csv,text/csv"
+        accept=".csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         className="data-source-file-input"
         tabIndex={-1}
         aria-hidden

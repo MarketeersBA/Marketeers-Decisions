@@ -1,10 +1,12 @@
-"""Unit costs stored on the study. Design sheet and CSV upload share one parser."""
+"""Unit costs stored on the study. Design sheet and CSV/Excel upload share one parser."""
 
 from __future__ import annotations
 
 import hashlib
 import math
+import re
 from datetime import datetime, timezone
+from io import BytesIO
 
 import pandas as pd
 
@@ -13,6 +15,7 @@ from model.study_schema import StudyDocument
 
 _SKU_HEADERS = ("sku", "sku name")
 _COST_HEADERS = ("unit cost", "unit_cost", "cost")
+_UNIT_COST_SHEET = re.compile(r"^unit\s*costs?$", re.I)
 
 
 class UnitCostImportError(ValueError):
@@ -47,8 +50,27 @@ def mock_unit_cost(
     return round(base_price * r, 3)
 
 
+def load_unit_cost_frame(contents: bytes, filename: str) -> pd.DataFrame:
+    """Load a unit-cost table from an uploaded CSV or Excel workbook."""
+    name = (filename or "").strip().lower()
+    if name.endswith(".csv"):
+        return pd.read_csv(BytesIO(contents))
+    if name.endswith((".xlsx", ".xls")):
+        xls = pd.ExcelFile(BytesIO(contents))
+        sheet = next(
+            (s for s in xls.sheet_names if _UNIT_COST_SHEET.search(s)),
+            xls.sheet_names[0] if xls.sheet_names else None,
+        )
+        if sheet is None:
+            raise UnitCostImportError("Unit costs workbook has no sheets.")
+        return pd.read_excel(xls, sheet_name=sheet)
+    raise UnitCostImportError(
+        "Invalid file type. Please upload a CSV (.csv) or Excel workbook (.xlsx or .xls)."
+    )
+
+
 def parse_unit_cost_table(df: pd.DataFrame, known_skus: set[str]) -> dict[str, float]:
-    """Parse a Unit Costs sheet or CSV.
+    """Parse a Unit Costs sheet, CSV, or Excel table.
 
     Omitted SKUs are left out of the map (uncovered, not zero). Unknown SKUs,
     duplicates, blank costs, negatives, and non-finite values reject the table.
@@ -164,7 +186,8 @@ def unit_cost_gap_message(skus: list[str]) -> str:
     extra = f" (+{len(skus) - 12} more)" if len(skus) > 12 else ""
     return (
         f"Unit cost missing for {len(skus)} SKU(s): {shown}{extra}. "
-        "Upload a unit cost CSV on Data Hub, or add a Unit Costs sheet to the design workbook."
+        "Upload a unit cost CSV or Excel file on Data Hub, or add a Unit Costs sheet "
+        "to the design workbook."
     )
 
 
@@ -177,6 +200,6 @@ def unit_cost_provenance(doc: StudyDocument | None) -> str:
         label = "design workbook Unit Costs sheet"
         return f"{label} ({name})" if name else label
     if source == "csv":
-        label = "uploaded unit cost CSV"
+        label = "uploaded unit costs"
         return f"{label} ({name})" if name else label
     return "no unit costs"

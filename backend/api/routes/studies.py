@@ -22,7 +22,12 @@ from data.excel_importer import (
     import_hbu_sheet,
 )
 from data.study_reingest import apply_hbu_replace, merge_design_replace
-from data.unit_costs import UnitCostImportError, apply_unit_costs, parse_unit_cost_table
+from data.unit_costs import (
+    UnitCostImportError,
+    apply_unit_costs,
+    load_unit_cost_frame,
+    parse_unit_cost_table,
+)
 from data.study_writer import StudyConflictError, persist_hbu_dataframe, persist_study_document, write_study
 from db.repository import StudyRepository
 from model.project_core import ProjectCore
@@ -199,11 +204,12 @@ async def replace_study_hbu_source(
     return _data_sources_payload(doc)
 
 
-def _require_csv_upload(file: UploadFile) -> None:
-    if not file.filename or not file.filename.lower().endswith(".csv"):
+def _require_unit_cost_upload(file: UploadFile) -> None:
+    name = (file.filename or "").lower()
+    if not name.endswith((".csv", ".xlsx", ".xls")):
         raise HTTPException(
             status_code=400,
-            detail="Invalid file type. Please upload a CSV file (.csv).",
+            detail="Invalid file type. Please upload a CSV (.csv) or Excel workbook (.xlsx or .xls).",
         )
 
 
@@ -214,11 +220,11 @@ async def replace_study_unit_costs(
     client_id: str = Depends(get_current_client_id),
 ) -> dict:
     ensure_study_access(client_id, slug)
-    _require_csv_upload(file)
+    _require_unit_cost_upload(file)
     doc = _load_study_doc(client_id, slug)
     try:
         contents = await file.read()
-        frame = pd.read_csv(BytesIO(contents))
+        frame = load_unit_cost_frame(contents, file.filename or "")
         costs = parse_unit_cost_table(frame, {p.name for p in doc.products})
     except UnitCostImportError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
