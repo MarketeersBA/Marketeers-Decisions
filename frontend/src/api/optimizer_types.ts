@@ -77,7 +77,7 @@ export interface OptimizerBrandSku {
   value_share?: number;
   /** Unit size from the study's size attribute; null when the study has none. */
   size?: number | null;
-  unit_cost?: number;
+  unit_cost?: number | null;
   /** Study lineup inclusion (results grid Selected); false = excluded from the market. */
   included?: boolean;
 }
@@ -195,7 +195,7 @@ export interface OptimizerBoundsSku {
   base_price: number;
   lo: number;
   hi: number;
-  cost: number;
+  cost: number | null;
 }
 
 export interface SkuBoundInput {

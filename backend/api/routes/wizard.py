@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+from datetime import datetime, timezone
 from io import BytesIO
 import uuid
 
@@ -44,6 +45,10 @@ async def upload_design(
         doc = import_design_sheet(BytesIO(contents))
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Failed to parse design sheet: {exc}") from exc
+
+    if doc.meta.unit_cost_source == "design":
+        doc.meta.unit_cost_filename = (file.filename or "").strip()
+        doc.meta.unit_cost_updated_at = datetime.now(timezone.utc).isoformat()
 
     wizard_id = str(uuid.uuid4())
     wizard_sessions[wizard_id] = {

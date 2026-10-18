@@ -62,6 +62,25 @@ export function useReplaceStudyDesignSource(slug: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["studyDataSources", slug] });
       qc.invalidateQueries({ queryKey: ["studies"] });
+      qc.invalidateQueries({ queryKey: ["optimizer"] });
+    },
+  });
+}
+
+export function useReplaceStudyUnitCosts(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      return api.upload<StudyDataSourcesResponse>(
+        `/api/studies/${slug}/data-sources/unit-costs`,
+        fd,
+      );
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["studyDataSources", slug] });
+      qc.invalidateQueries({ queryKey: ["optimizer"] });
     },
   });
 }

@@ -5,7 +5,6 @@ from __future__ import annotations
 import pytest
 
 from config import STUDIES_DIR
-from data.unit_costs import load_unit_cost_overrides, resolve_unit_cost
 from model.corridor_preview import _current_price, _product_id, corridor_preview
 from model.optimizer import (
     get_calibrated_bounds,
@@ -23,6 +22,15 @@ def demo_slug() -> str:
         if folder.is_dir() and ProjectCore.study_exists(folder.name):
             return folder.name
     pytest.skip("no study available")
+
+
+def _explicit_costs(project: ProjectCore, skus: list[str]) -> dict[str, float]:
+    """Test-supplied costs. Runtime never invents these."""
+    costs: dict[str, float] = {}
+    for sku in skus:
+        price = _current_price(project, sku) or 1.0
+        costs[sku] = round(price * 0.4, 3)
+    return costs
 
 
 def test_corridor_preview_returns_points_and_both_volume_drops(demo_slug: str) -> None:
@@ -55,6 +63,7 @@ def test_corridor_preview_returns_points_and_both_volume_drops(demo_slug: str) -
         n_points=3,
         min_margin_pct=20.0,
         max_volume_drop_pct=50.0,
+        cost_overrides=_explicit_costs(project, skus),
     )
 
     assert out["reference_sku"] == reference_sku
@@ -95,12 +104,8 @@ def test_corridor_band_is_margin_floor_to_volume_cap(demo_slug: str) -> None:
     pid = _product_id(project, reference_sku)
     assert pid is not None
     price_lo, price_hi = get_calibrated_bounds(project.doc, pid, anchor_price)
-    cost = resolve_unit_cost(
-        demo_slug,
-        reference_sku,
-        anchor_price,
-        load_unit_cost_overrides(demo_slug),
-    )
+    costs = _explicit_costs(project, groups[brand])
+    cost = costs[reference_sku]
     if cost <= 0:
         pytest.skip("reference SKU has no usable unit cost")
     target_price = price_lo + (price_hi - price_lo) * 0.35
@@ -117,6 +122,7 @@ def test_corridor_band_is_margin_floor_to_volume_cap(demo_slug: str) -> None:
         n_points=10,
         min_margin_pct=min_margin_pct,
         max_volume_drop_pct=10.0,
+        cost_overrides=costs,
     )
 
     bounds = out["bounds"]
@@ -165,6 +171,7 @@ def test_tighter_margin_floor_never_widens_the_corridor(demo_slug: str) -> None:
             n_points=6,
             min_margin_pct=min_margin_pct,
             max_volume_drop_pct=10.0,
+            cost_overrides=_explicit_costs(project, groups[brand]),
         )
         bounds = out["bounds"]
         if bounds["min_binding_label"] == "infeasible":

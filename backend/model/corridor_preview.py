@@ -11,7 +11,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from data.unit_costs import load_unit_cost_overrides, resolve_unit_cost
+from data.unit_costs import stored_unit_costs, unit_cost_gap_message, unit_cost_provenance
 from model.optimizer import (
     _margin_floor_price,
     get_calibrated_bounds,
@@ -33,13 +33,11 @@ class _SkuSnap:
     price: float
     volume: float  # NewShare units (typically 0–100 scale)
     revenue: float
-    cost: float
+    cost: float | None
 
     @property
     def unit_cm_pct(self) -> float | None:
-        if self.price <= 0:
-            return None
-        if self.cost < 0:
+        if self.price <= 0 or self.cost is None or self.cost < 0:
             return None
         return (self.price - self.cost) / self.price * 100.0
 
@@ -67,7 +65,7 @@ def _current_price(project: "ProjectCore", sku: str) -> float:
         return 0.0
 
 
-def _snap_sku(project: "ProjectCore", sku: str, cost: float) -> _SkuSnap:
+def _snap_sku(project: "ProjectCore", sku: str, cost: float | None) -> _SkuSnap:
     price = _current_price(project, sku)
     volume = float(project.get_product_share("NewShare", sku) or 0.0)
     revenue = float(project.get_product_revenue(sku) or 0.0)
@@ -80,8 +78,10 @@ def _snap_sku(project: "ProjectCore", sku: str, cost: float) -> _SkuSnap:
 def _brand_totals(snaps: list[_SkuSnap]) -> dict[str, float]:
     vol = sum(s.volume for s in snaps)
     rev = sum(s.revenue for s in snaps)
-    contrib = sum(s.contribution for s in snaps)
-    cm_pct = (contrib / rev * 100.0) if rev > 0 else 0.0
+    priced = [s for s in snaps if s.cost is not None]
+    priced_rev = sum(s.revenue for s in priced)
+    contrib = sum(s.contribution for s in priced)
+    cm_pct = (contrib / priced_rev * 100.0) if priced_rev > 0 else 0.0
     return {
         "volume": vol,
         "revenue": rev,
@@ -207,20 +207,9 @@ def corridor_preview(
             f"reference_sku {reference_sku!r} is not in focus brand {brand!r}"
         )
 
-    overrides = (
-        cost_overrides
-        if cost_overrides is not None
-        else load_unit_cost_overrides(project.slug, project.client_id)
-    )
-    costs = {
-        sku: resolve_unit_cost(
-            project.slug,
-            sku,
-            _current_price(project, sku),
-            overrides,
-        )
-        for sku in brand_skus
-    }
+    stored = cost_overrides if cost_overrides is not None else stored_unit_costs(project.doc)
+    costs = {sku: stored.get(sku) for sku in brand_skus}
+    missing = [sku for sku, cost in costs.items() if cost is None]
 
     project.find_predicted_shares()
     base_snaps = [_snap_sku(project, sku, costs[sku]) for sku in brand_skus]
@@ -403,7 +392,9 @@ def corridor_preview(
     min_binding_label = "calibrated price floor"
     if min_margin_pct is not None:
         floor_frac = float(min_margin_pct) / 100.0
-        ref_cost = costs[reference_sku]
+        ref_cost = costs.get(reference_sku)
+        if ref_cost is None:
+            raise ValueError(unit_cost_gap_message([reference_sku]))
         if ref_cost > 0 and floor_frac >= 1.0 - 1e-12:
             margin_floor_price = math.inf  # no price clears a 100% margin floor
         else:
@@ -469,6 +460,8 @@ def corridor_preview(
             project.find_predicted_shares()
 
     warnings: list[str] = []
+    if missing:
+        warnings.append(unit_cost_gap_message(missing))
     if base_ref.volume <= 1e-9:
         warnings.append(
             f"Reference SKU {reference_sku!r} has ~0 baseline volume share, so the contribution "
@@ -539,7 +532,11 @@ def corridor_preview(
         "calibrated_price_hi": price_hi,
         "min_margin_pct": min_margin_pct,
         "max_volume_drop_pct": max_volume_drop_pct,
-        "costs_source": "unit_costs.csv override or mock ratio of base price",
+        "costs_source": (
+            "caller override"
+            if cost_overrides is not None
+            else unit_cost_provenance(project.doc)
+        ),
         "baseline": {
             "reference_sku_price": base_ref.price,
             "reference_sku_volume": base_ref.volume,

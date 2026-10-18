@@ -8,6 +8,7 @@ Adapted from sop_file_app/optimize.py FastEvaluator, but wired to StudyModel:
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -29,7 +30,7 @@ class DecisionVariable:
     base_price: float
     grid_prices: np.ndarray = field(repr=False)
     base_level: int = 0
-    unit_cost: float = 0.0
+    unit_cost: float | None = None
 
 
 @dataclass
@@ -293,7 +294,9 @@ def _objective_from_arrays(
             total += vol[i]
         elif objective == "margin":
             price_val = prices_by_idx.get(i, 1.0)
-            cost = cost_by_idx.get(i, 0.0)
+            if i not in cost_by_idx:
+                raise ValueError(f"Unit cost missing for {p.name}")
+            cost = cost_by_idx[i]
             if price_val > 0:
                 total += rev[i] * max(price_val - cost, 0.0) / price_val
     return total
@@ -317,7 +320,7 @@ def authoritative_evaluate(
     *,
     scope_skus: list[str],
     objective: ObjectiveName,
-    cost_by_sku: dict[str, float] | None = None,
+    cost_by_sku: dict[str, float | None] | None = None,
 ) -> EvalResult:
     """Full pipeline via existing modules — reference for parity tests."""
     skus = list(prices.keys())
@@ -334,13 +337,21 @@ def _pack_eval_result(
     model: StudyModel,
     scope_skus: list[str],
     objective: ObjectiveName,
-    cost_by_sku: dict[str, float],
+    cost_by_sku: dict[str, float | None],
 ) -> EvalResult:
     scope_set = set(scope_skus)
     scope_mask = np.array([p.name in scope_set for p in model.products], dtype=bool)
-    cost_by_idx = {
-        i: cost_by_sku.get(p.name, 0.0) for i, p in enumerate(model.products)
-    }
+    cost_by_idx: dict[int, float] = {}
+    for i, p in enumerate(model.products):
+        raw = cost_by_sku.get(p.name)
+        if raw is None:
+            continue
+        try:
+            cost = float(raw)
+        except (TypeError, ValueError):
+            continue
+        if math.isfinite(cost):
+            cost_by_idx[i] = cost
     prices_by_idx = {
         i: float(p.new_attributes.get("Price", p.base_attributes.get("Price", 1.0)) or 1.0)
         for i, p in enumerate(model.products)
@@ -392,6 +403,7 @@ class FastEvaluator:
         self._objective: ObjectiveName = "revenue"
         self._max_volume_drop_pct: float | None = None
         self._baseline_brand_volume: float | None = None
+        self._unit_costs: dict[str, float] = {}
 
     def configure(
         self,
@@ -400,9 +412,19 @@ class FastEvaluator:
         scope_skus: list[str],
         objective: ObjectiveName,
         max_volume_drop_pct: float | None = None,
+        unit_costs: dict[str, float] | None = None,
     ) -> None:
         self._variables = variables
         self._var_by_sku = {v.sku: v for v in variables}
+        merged: dict[str, float] = {}
+        for var in variables:
+            if var.unit_cost is not None and math.isfinite(var.unit_cost):
+                merged[var.sku] = float(var.unit_cost)
+        if unit_costs:
+            for sku, cost in unit_costs.items():
+                if cost is not None and math.isfinite(cost):
+                    merged[sku] = float(cost)
+        self._unit_costs = merged
         self._objective = objective
         self._max_volume_drop_pct = max_volume_drop_pct
         self._baseline_brand_volume = None
@@ -482,7 +504,7 @@ class FastEvaluator:
             self.model,
             self._scope_skus,
             self._objective,
-            {v.sku: v.unit_cost for v in self._variables},
+            self._unit_costs,
         )
         result = self._apply_feasibility(result)
         if restore_prices:

@@ -261,14 +261,12 @@ interface Product {
   basePrice: number;
   /** Unit size from the study's size attribute; null when the study has none. */
   size: number | null;
-  unitCost: number;
+  unitCost: number | null;
   valueShare: number;
   revenue: number;
 }
 
 /** Fallback unit cost when the study exposes none, as a share of base price. */
-const MOCK_COST_RATIO = 0.62;
-
 /** Shock focus reference SKU price by this factor; matches analytics cross-brand default up-move. */
 const PRICE_SHOCK_MULT = 1.1;
 const PRICE_SHOCK_PCT = Math.round((PRICE_SHOCK_MULT - 1) * 100);
@@ -596,7 +594,7 @@ function mergeBrandSkus(
     return {
       ...sku,
       size: api.size ?? sku.size,
-      unit_cost: api.unit_cost ?? sku.unit_cost,
+      unit_cost: "unit_cost" in api ? api.unit_cost : sku.unit_cost,
     };
   });
   for (const api of apiSkus) {
@@ -617,7 +615,8 @@ function toProducts(brand: string, skus: OptimizerBrandSku[]): Product[] {
     bShare: s.n_share,
     basePrice: s.base_price,
     size: s.size != null && s.size > 0 ? s.size : null,
-    unitCost: s.unit_cost != null && s.unit_cost > 0 ? s.unit_cost : s.base_price * MOCK_COST_RATIO,
+    unitCost:
+      s.unit_cost != null && Number.isFinite(s.unit_cost) ? s.unit_cost : null,
     valueShare: s.value_share ?? 0,
     revenue: s.revenue,
   }));
@@ -958,10 +957,10 @@ function interpolateCorridorBoundAt(
   return null;
 }
 
-function marginFloorPriceFromCost(cost: number, marginFloorPct: number, priceLo: number) {
+function marginFloorPriceFromCost(cost: number | null, marginFloorPct: number, priceLo: number) {
   let marginFloorPrice = priceLo;
   let minBindingLabel = "calibrated price floor";
-  if (cost > 0 && marginFloorPct < 100 - 1e-9) {
+  if (cost != null && cost > 0 && marginFloorPct < 100 - 1e-9) {
     const solved = cost / (1 - marginFloorPct / 100);
     if (Number.isFinite(solved)) {
       marginFloorPrice = Math.max(priceLo, solved);
@@ -978,7 +977,7 @@ function deriveCorridorBounds(
   opts: {
     marginFloorPct: number;
     volumeCapPct: number;
-    refCost: number;
+    refCost: number | null;
     priceLo: number;
     priceHi: number;
     indexAnchorPrice: number;
@@ -1787,6 +1786,13 @@ export function OptimizerPage() {
     () => studyIncludedFocusSkus.filter((s) => optSelectedSkus[s.name] === true),
     [studyIncludedFocusSkus, optSelectedSkus],
   );
+  const missingUnitCostNames = useMemo(
+    () =>
+      includedFocusSkus
+        .filter((s) => s.unit_cost == null || !Number.isFinite(s.unit_cost))
+        .map((s) => s.name),
+    [includedFocusSkus],
+  );
   const suggestedRefSku = useMemo(
     () =>
       highestShareSku(
@@ -1805,10 +1811,8 @@ export function OptimizerPage() {
     1;
   const focusRefCost = useMemo(() => {
     const sku = studyIncludedFocusSkus.find((s) => s.name === focusRefSku);
-    if (!sku) return 0;
-    return sku.unit_cost != null && sku.unit_cost > 0
-      ? sku.unit_cost
-      : sku.base_price * MOCK_COST_RATIO;
+    if (!sku || sku.unit_cost == null || !Number.isFinite(sku.unit_cost)) return null;
+    return sku.unit_cost;
   }, [studyIncludedFocusSkus, focusRefSku]);
 
   const setFocusBrand = (brand: string) => {
@@ -2107,11 +2111,17 @@ export function OptimizerPage() {
         base_price: b.base_price,
         lo: b.lo,
         hi: b.hi,
-        cost: b.cost,
+        cost: b.cost ?? 0,
         included: selectedForRun[b.sku] === true,
       }));
 
     if (bounds.filter((b) => b.included).length === 0) return;
+    if (objective === "Margin" && missingUnitCostNames.length > 0) {
+      setRunError(
+        `Unit costs are missing for ${missingUnitCostNames.slice(0, 8).join(", ")}. Add a Unit Costs sheet to the design workbook, or upload a CSV on Data Hub.`,
+      );
+      return;
+    }
 
     const previewCorridor = corridorRatiosFromPreview(corridorBounds, startAnchorPrice);
 
@@ -2128,7 +2138,7 @@ export function OptimizerPage() {
       objective: objectiveToBackend(objective),
       scope: "brand",
       max_volume_drop_pct: shareLossLimit,
-      min_margin_pct: marginFloor,
+      min_margin_pct: missingUnitCostNames.length === 0 ? marginFloor : undefined,
       reference_sku: focusRefSku || null,
       anchor_label: selectedAnchor
         ? `${selectedAnchor.brand} · ${selectedAnchor.sku}`
@@ -2519,6 +2529,14 @@ export function OptimizerPage() {
                 These two guardrails set the feasible price corridor below — the model won&apos;t recommend a
                 price that breaches either one, even if a further move would raise unit margin.
               </div>
+              {missingUnitCostNames.length > 0 ? (
+                <div className="opt-note opt-note-warn">
+                  Unit costs are missing for {missingUnitCostNames.length} selected SKU
+                  {missingUnitCostNames.length === 1 ? "" : "s"}. Add a Unit Costs sheet to the design
+                  workbook, or upload a CSV on Data Hub. The margin floor stays off until every selected
+                  SKU has a cost.
+                </div>
+              ) : null}
             </div>
 
             <div className="opt-setup-skus opt-setup-panel">

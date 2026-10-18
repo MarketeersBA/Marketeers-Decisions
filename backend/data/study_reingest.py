@@ -43,6 +43,19 @@ def merge_design_replace(existing: StudyDocument, imported: StudyDocument, filen
     imported.meta.respondents_count = existing.meta.respondents_count
     imported.meta.products_count = len(imported.products)
     imported.meta.design_source_updated_at = datetime.now(timezone.utc).isoformat()
+    if (imported.meta.unit_cost_source or "") == "design":
+        imported.meta.unit_cost_filename = filename.strip()
+        imported.meta.unit_cost_updated_at = imported.meta.design_source_updated_at
+    else:
+        previous = {p.name: p.unit_cost for p in existing.products}
+        for product in imported.products:
+            product.unit_cost = previous.get(product.name)
+        imported.meta.unit_cost_source = existing.meta.unit_cost_source
+        imported.meta.unit_cost_filename = existing.meta.unit_cost_filename
+        imported.meta.unit_cost_updated_at = existing.meta.unit_cost_updated_at
+        imported.meta.unit_cost_sku_count = sum(
+            p.unit_cost is not None for p in imported.products
+        )
     return imported
 
 

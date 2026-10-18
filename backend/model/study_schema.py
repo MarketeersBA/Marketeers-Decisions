@@ -33,6 +33,11 @@ class StudyMeta:
     ingested_at: str = ""
     data_period: str = ""
     data_source: str = ""
+    # "" until a Unit Costs sheet or CSV is applied; then "design" or "csv".
+    unit_cost_source: str = ""
+    unit_cost_filename: str = ""
+    unit_cost_updated_at: str = ""
+    unit_cost_sku_count: int = 0
 
 
 @dataclass
@@ -60,6 +65,7 @@ class ProductDef:
     base_attributes: dict[str, Any] = field(default_factory=dict)
     is_new_product: bool = False
     is_replaced_product: bool = False
+    unit_cost: float | None = None
 
 
 @dataclass

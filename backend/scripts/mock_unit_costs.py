@@ -55,6 +55,12 @@ def generate_unit_costs(slug: str, *, skus: list[str] | None = None) -> list[dic
 
 
 def write_unit_costs_csv(slug: str, rows: list[dict[str, float | str]]) -> Path:
+    """Write an explicit mock cost file and store those costs on the study."""
+    from datetime import datetime, timezone
+
+    from data.study_writer import persist_study_document
+    from data.unit_costs import apply_unit_costs
+
     cid = resolve_client_id()
     path = study_folder(slug, cid) / "unit_costs.csv"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -64,6 +70,19 @@ def write_unit_costs_csv(slug: str, rows: list[dict[str, float | str]]) -> Path:
         for row in rows:
             writer.writerow({"SKU": row["SKU"], "Unit Cost": row["Unit Cost"]})
     get_storage().put_study_file(cid, slug, "unit_costs.csv")
+
+    project = ProjectCore(slug)
+    project.initialize()
+    if project.doc is None:
+        raise RuntimeError(f"Study {slug} has no document to store unit costs")
+    apply_unit_costs(
+        project.doc,
+        {str(row["SKU"]): float(row["Unit Cost"]) for row in rows},
+        source="csv",
+        filename="unit_costs.csv",
+        updated_at=datetime.now(timezone.utc).isoformat(),
+    )
+    persist_study_document(slug, project.doc, cid)
     return path
 
 

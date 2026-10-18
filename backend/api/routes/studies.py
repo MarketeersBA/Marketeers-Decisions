@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 
 from io import BytesIO
 
+import pandas as pd
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from api.deps import get_current_client_id
@@ -21,6 +22,7 @@ from data.excel_importer import (
     import_hbu_sheet,
 )
 from data.study_reingest import apply_hbu_replace, merge_design_replace
+from data.unit_costs import UnitCostImportError, apply_unit_costs, parse_unit_cost_table
 from data.study_writer import StudyConflictError, persist_hbu_dataframe, persist_study_document, write_study
 from db.repository import StudyRepository
 from model.project_core import ProjectCore
@@ -68,6 +70,17 @@ def _data_sources_payload(doc: StudyDocument) -> dict:
     else:
         hbu_desc = "Choice-based conjoint"
 
+    covered = sum(p.unit_cost is not None for p in doc.products)
+    total = len(doc.products)
+    if (meta.unit_cost_source or "").strip():
+        cost_title = meta.unit_cost_filename.strip() or "Unit costs"
+        cost_desc = f"{covered:,} of {total:,} SKUs"
+        cost_updated = meta.unit_cost_updated_at
+    else:
+        cost_title = "Unit costs"
+        cost_desc = "Not uploaded"
+        cost_updated = ""
+
     return {
         "sources": [
             {
@@ -83,6 +96,13 @@ def _data_sources_payload(doc: StudyDocument) -> dict:
                 "title": hbu_title,
                 "description": hbu_desc,
                 "updatedAt": hbu_updated,
+            },
+            {
+                "id": "unit-costs",
+                "initials": "UC",
+                "title": cost_title,
+                "description": cost_desc,
+                "updatedAt": cost_updated,
             },
         ],
     }
@@ -175,6 +195,43 @@ async def replace_study_hbu_source(
     doc = apply_hbu_replace(doc, file.filename or "", len(hbu_df))
     persist_study_document(slug, doc, client_id)
     persist_hbu_dataframe(slug, hbu_df, client_id)
+    session_manager.reload_study_for_slug(client_id, slug)
+    return _data_sources_payload(doc)
+
+
+def _require_csv_upload(file: UploadFile) -> None:
+    if not file.filename or not file.filename.lower().endswith(".csv"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file type. Please upload a CSV file (.csv).",
+        )
+
+
+@router.post("/{slug}/data-sources/unit-costs")
+async def replace_study_unit_costs(
+    slug: str,
+    file: UploadFile = File(...),
+    client_id: str = Depends(get_current_client_id),
+) -> dict:
+    ensure_study_access(client_id, slug)
+    _require_csv_upload(file)
+    doc = _load_study_doc(client_id, slug)
+    try:
+        contents = await file.read()
+        frame = pd.read_csv(BytesIO(contents))
+        costs = parse_unit_cost_table(frame, {p.name for p in doc.products})
+    except UnitCostImportError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Failed to parse unit costs: {exc}") from exc
+
+    apply_unit_costs(
+        doc,
+        costs,
+        source="csv",
+        filename=file.filename or "unit_costs.csv",
+    )
+    persist_study_document(slug, doc, client_id)
     session_manager.reload_study_for_slug(client_id, slug)
     return _data_sources_payload(doc)
 
@@ -334,6 +391,9 @@ def create_study(body: CreateStudyRequest, client_id: str = Depends(get_current_
     doc.meta.ingested_at = now
     doc.meta.design_source_updated_at = now
     doc.meta.hbu_source_updated_at = now
+    if doc.meta.unit_cost_source == "design":
+        doc.meta.unit_cost_filename = doc.meta.design_source_filename
+        doc.meta.unit_cost_updated_at = now
 
     repo = StudyRepository()
     storage = get_storage()

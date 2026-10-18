@@ -19,7 +19,7 @@ export interface StudyListItem {
 }
 
 export interface StudyDataSource {
-  id: "design" | "hbu";
+  id: "design" | "hbu" | "unit-costs";
   initials: string;
   title: string;
   description: string;

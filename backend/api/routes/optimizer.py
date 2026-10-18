@@ -14,11 +14,17 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from api.deps import get_current_client_id
+from config import get_storage
 from api.schemas import CorridorPreviewRequest, RunOptimizerRequest, SaveOptimizerScenarioRequest
 from api.study_access import ensure_study_access
 from api.serializers import dataframe_to_records, segmentation_payload
 from data.scenario_store import ScenarioStore
-from data.unit_costs import load_unit_cost_overrides, resolve_unit_cost
+from data.unit_costs import (
+    missing_unit_costs,
+    resolve_unit_cost,
+    stored_unit_costs,
+    unit_cost_gap_message,
+)
 from model.corridor_preview import corridor_preview
 from model.optimizer import (
     OptResult,
@@ -339,7 +345,9 @@ def _brand_cm_pct_unit_cost(
         price = _price_from_row(row)
         if rev <= 0 or price <= 0:
             continue
-        cost = float(cost_by_sku.get(sku, 0.0))
+        if sku not in cost_by_sku:
+            continue
+        cost = float(cost_by_sku[sku])
         tot_rev += rev
         tot_contrib += rev * max(price - cost, 0.0) / price
     if tot_rev <= 0:
@@ -456,7 +464,7 @@ def _build_result_payload(
             base_df,
             final_df,
             brand_skus,
-            {b.sku: float(b.cost) for b in req.bounds},
+            stored_unit_costs(project.doc),
         ),
         "cannibalization": _build_cannibalization(base_df, final_df, brand_skus, req.brand),
         "segmentation": segmentation_payload(project),
@@ -575,7 +583,6 @@ def get_context(slug: str, client_id: str = Depends(get_current_client_id)) -> d
 
 def _brand_summary_payload(
     project: ProjectCore,
-    slug: str,
     group_type: str,
     brand: str,
     *,
@@ -587,7 +594,7 @@ def _brand_summary_payload(
     df = project.results
 
     brand_skus = _brand_skus(project, group_type, brand)
-    cost_overrides = load_unit_cost_overrides(slug, project.client_id)
+    costs = stored_unit_costs(project.doc)
     products_by_name = {p.name: p for p in project.doc.products} if project.doc else {}
 
     skus_count = 0
@@ -628,7 +635,7 @@ def _brand_summary_payload(
             "value_share": val_share,
             # Unit size drives the €/L view; None when the study has no size attribute.
             "size": get_sku_size(project.doc, name),
-            "unit_cost": resolve_unit_cost(slug, name, base_price, cost_overrides),
+            "unit_cost": resolve_unit_cost(name, costs),
             "included": included,
         })
 
@@ -666,7 +673,7 @@ def get_brand_summary(
         base_scenario=base_scenario,
     )
     return _brand_summary_payload(
-        project, slug, group_type, brand, base_scenario=base_scenario
+        project, group_type, brand, base_scenario=base_scenario
     )
 
 
@@ -695,7 +702,7 @@ def get_brand_summaries(
         project.reload_results()
     brands = {
         brand: _brand_summary_payload(
-            project, slug, group_type, brand, base_scenario=base_scenario
+            project, group_type, brand, base_scenario=base_scenario
         )
         for brand in groups
     }
@@ -743,7 +750,7 @@ def get_bounds(
             price_by_name[name] = raw
 
     products_by_name = {p.name: p for p in doc.products}
-    cost_overrides = load_unit_cost_overrides(slug, project.client_id)
+    costs = stored_unit_costs(project.doc)
     sku_rows = []
     for sku in brand_skus:
         p = products_by_name.get(sku)
@@ -760,7 +767,7 @@ def get_bounds(
             "base_price": base_price,
             "lo": lo,
             "hi": hi,
-            "cost": resolve_unit_cost(slug, p.name, base_price, cost_overrides),
+            "cost": resolve_unit_cost(p.name, costs),
         })
     return sku_rows
 
@@ -823,6 +830,7 @@ def _run_job(job: JobRecord, req: RunOptimizerRequest) -> None:
         included = [b for b in req.bounds if b.included and b.sku in allowed]
         ordered_skus = sort_skus_by_size(project.doc, [b.sku for b in included])
         included_bounds = {b.sku: b for b in included}
+        study_costs = stored_unit_costs(project.doc)
         bounds = []
         for sku in ordered_skus:
             b = included_bounds[sku]
@@ -834,7 +842,7 @@ def _run_job(job: JobRecord, req: RunOptimizerRequest) -> None:
                 base_price=base_price,
                 lo=b.lo,
                 hi=b.hi,
-                cost=b.cost,
+                cost=study_costs.get(b.sku),
             ))
 
         if req.scope == "brand":
@@ -908,7 +916,9 @@ def _run_job(job: JobRecord, req: RunOptimizerRequest) -> None:
             ppa_min_saving=getattr(req, "ppa_min_saving", None),
             ppa_max_saving=getattr(req, "ppa_max_saving", None),
             min_margin_pct=_pct_points_to_fraction(getattr(req, "min_margin_pct", None)),
+            unit_costs=study_costs,
         )
+        _reject_missing_unit_costs(project, spec)
 
         import time as _time
         t0 = _time.perf_counter()
@@ -969,6 +979,22 @@ def _run_job(job: JobRecord, req: RunOptimizerRequest) -> None:
             current_client_id.reset(context_token)
 
 
+def _reject_missing_unit_costs(project: ProjectCore, spec) -> None:
+    """Margin math requires a stored cost. Other objectives do not."""
+    if spec.objective != "margin" and spec.min_margin_pct is None:
+        return
+    model = project._model
+    included = {p.name for p in model.products if p.included} if model is not None else set()
+    needed: list[str] = []
+    if spec.objective == "margin":
+        needed.extend(sku for sku in spec.scope_skus if sku in included)
+    if spec.min_margin_pct is not None:
+        needed.extend(bound.sku for bound in spec.bounds)
+    missing = missing_unit_costs(needed, spec.unit_costs)
+    if missing:
+        raise ValueError(unit_cost_gap_message(missing))
+
+
 @router.post("/run")
 def run_optimizer(
     slug: str,
@@ -976,6 +1002,14 @@ def run_optimizer(
     client_id: str = Depends(get_current_client_id),
 ) -> dict:
     ensure_study_access(client_id, slug)
+    if body.objective == "margin" or body.min_margin_pct is not None:
+        doc, _ = get_storage().load_study(client_id, slug)
+        missing = missing_unit_costs(
+            [b.sku for b in body.bounds if b.included],
+            stored_unit_costs(doc),
+        )
+        if missing:
+            raise HTTPException(status_code=400, detail=unit_cost_gap_message(missing))
     job_id = uuid.uuid4().hex
 
     bounds = [PriceBound(b.sku, b.base_price, b.lo, b.hi, b.cost) for b in body.bounds if b.included]

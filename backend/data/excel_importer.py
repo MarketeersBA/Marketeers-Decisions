@@ -10,6 +10,7 @@ from typing import Any, BinaryIO, Union
 
 import pandas as pd
 
+from data.unit_costs import UnitCostImportError, apply_unit_costs, parse_unit_cost_table
 from model.study_schema import (
     AttributeDef,
     ConditionalLevelRow,
@@ -183,7 +184,21 @@ def import_design_sheet(source: FileSource) -> StudyDocument:
     for attr in doc.attributes:
         if attr.name in attr_levels:
             attr.level_names = attr_levels[attr.name]
+    _apply_design_unit_costs(xls, doc)
     return doc
+
+
+def _apply_design_unit_costs(xls: pd.ExcelFile, doc: StudyDocument) -> None:
+    """Apply an optional Unit Costs sheet. Absence leaves costs empty."""
+    sheet = _find_sheet(xls, r"^unit\s*costs?$")
+    if sheet is None:
+        return
+    df = pd.read_excel(xls, sheet_name=sheet)
+    try:
+        costs = parse_unit_cost_table(df, {p.name for p in doc.products})
+    except UnitCostImportError as exc:
+        raise ExcelImportError(f"Unit Costs sheet: {exc}") from exc
+    apply_unit_costs(doc, costs, source="design", filename="", updated_at="")
 
 
 def import_hbu_sheet(source: FileSource, doc: StudyDocument) -> pd.DataFrame:

@@ -23,9 +23,9 @@ def test_get_study_data_sources(demo_slug: str) -> None:
     assert r.status_code == 200
     body = r.json()
     assert "sources" in body
-    assert len(body["sources"]) == 2
+    assert len(body["sources"]) == 3
     ids = {s["id"] for s in body["sources"]}
-    assert ids == {"design", "hbu"}
+    assert ids == {"design", "hbu", "unit-costs"}
     for src in body["sources"]:
         assert src["initials"]
         assert src["title"]

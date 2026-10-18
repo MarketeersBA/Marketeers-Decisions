@@ -6,7 +6,7 @@ import logging
 import math
 import warnings
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Callable, TypeGuard
 
 import numpy as np
 
@@ -226,7 +226,7 @@ class PriceBound:
     base_price: float
     lo: float
     hi: float
-    cost: float = 0.0
+    cost: float | None = None
 
 
 @dataclass
@@ -259,6 +259,7 @@ class OptSpec:
 
     # ── margin / movement / shelf-price snap ─────────────────────────────────
     min_margin_pct: float | None = None          # e.g. 0.30 → never below 30% margin
+    unit_costs: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass
@@ -366,7 +367,11 @@ def _compute_obj(project: ProjectCore, spec: OptSpec) -> float:
                 )
             except (TypeError, ValueError):
                 price_val = 1.0
-            cost = bound_map[p.name].cost if p.name in bound_map else 0.0
+            cost = _sku_unit_cost(spec, p.name)
+            if cost is None:
+                from data.unit_costs import unit_cost_gap_message
+
+                raise ValueError(unit_cost_gap_message([p.name]))
             if price_val > 0:
                 total += p.revenue * max(price_val - cost, 0.0) / price_val
     return total
@@ -471,9 +476,23 @@ def _ppa_ladder_ok(spec: OptSpec, prices: dict[str, float]) -> bool:
     return True
 
 
-def _margin_floor_price(cost: float, min_margin_pct: float) -> float | None:
+def _sku_unit_cost(spec: OptSpec, sku: str) -> float | None:
+    """Stored study cost, else the cost on this SKU's price bound. Never invents one."""
+    if sku in spec.unit_costs:
+        return spec.unit_costs[sku]
+    for bound in spec.bounds:
+        if bound.sku == sku:
+            return bound.cost
+    return None
+
+
+def _positive_cost(cost: float | None) -> TypeGuard[float]:
+    return cost is not None and cost > 0
+
+
+def _margin_floor_price(cost: float | None, min_margin_pct: float) -> float | None:
     """Minimum acceptable price for a given cost and margin floor (fraction of price)."""
-    if cost <= 0 or min_margin_pct is None:
+    if not _positive_cost(cost) or min_margin_pct is None:
         return None
     if min_margin_pct >= 1.0 - 1e-12:
         return None
@@ -497,7 +516,11 @@ def _margin_ok(spec: OptSpec, prices: dict[str, float]) -> bool:
         return True
     for b in spec.bounds:
         p = prices.get(b.sku)
-        if p is None or b.cost <= 0:
+        if p is None:
+            continue
+        if b.cost is None:
+            return False
+        if b.cost <= 0:
             continue
         if p <= 0:
             return False
@@ -569,10 +592,11 @@ def _build_menus(spec: OptSpec, max_menu: int = 15) -> tuple[dict[str, list[floa
 
         cands_list = [round(float(p), 2) for p in np.linspace(lo_c, hi_c, max_menu)]
         cands_list = sorted(set(cands_list + [lo_c, hi_c]))
-        if spec.min_margin_pct is not None and b.cost > 0:
+        if spec.min_margin_pct is not None and _positive_cost(b.cost):
             floor_pct = spec.min_margin_pct - 1e-9
+            cost = b.cost
             cands_list = [
-                p for p in cands_list if p > 0 and (p - b.cost) / p >= floor_pct
+                p for p in cands_list if p > 0 and (p - cost) / p >= floor_pct
             ]
         if not cands_list:
             msgs.append(
@@ -732,7 +756,7 @@ def _sku_limited_by(spec: OptSpec, prices: dict[str, float], tol: float = 0.01) 
         if p is None or b.sku in out:
             continue
         # Margin floor
-        if spec.min_margin_pct is not None and b.cost > 0:
+        if spec.min_margin_pct is not None and _positive_cost(b.cost):
             floor = _margin_floor_price(b.cost, spec.min_margin_pct)
             if floor is not None and abs(p - floor) <= max(tol, floor * 0.002):
                 out[b.sku] = "margin_floor"
@@ -808,7 +832,7 @@ def _ppa_violation_messages(spec: OptSpec, prices: dict[str, float]) -> list[str
     if spec.min_margin_pct is not None:
         for b in spec.bounds:
             p = prices.get(b.sku)
-            if p is None or b.cost <= 0 or p <= 0:
+            if p is None or not _positive_cost(b.cost) or p <= 0:
                 continue
             margin = (p - b.cost) / p
             if margin < spec.min_margin_pct - 1e-9:
@@ -1168,6 +1192,7 @@ def _try_create_fast_evaluator(project: ProjectCore, spec: OptSpec):
             scope_skus=spec.scope_skus,
             objective=spec.objective,  # type: ignore[arg-type]
             max_volume_drop_pct=spec.max_volume_drop_pct,
+            unit_costs=spec.unit_costs,
         )
         return fe
     except (ValueError, KeyError):

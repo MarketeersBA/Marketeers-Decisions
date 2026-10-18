@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import {
   useReplaceStudyDesignSource,
   useReplaceStudyHbuSource,
+  useReplaceStudyUnitCosts,
   useStudyDataSources,
 } from "../api/hooks";
 import { ApiError, api } from "../api/client";
@@ -24,9 +25,11 @@ export function DataSourcesSection({ slug }: DataSourcesSectionProps) {
   const { data, isLoading, isError, error } = useStudyDataSources(slug);
   const replaceDesign = useReplaceStudyDesignSource(slug);
   const replaceHbu = useReplaceStudyHbuSource(slug);
+  const replaceUnitCosts = useReplaceStudyUnitCosts(slug);
   const { session, setSession } = useSession();
   const designInputRef = useRef<HTMLInputElement>(null);
   const hbuInputRef = useRef<HTMLInputElement>(null);
+  const unitCostInputRef = useRef<HTMLInputElement>(null);
   const [rowError, setRowError] = useState<{ id: string; message: string } | null>(null);
   const [rowWarnings, setRowWarnings] = useState<string[]>([]);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -53,6 +56,8 @@ export function DataSourcesSection({ slug }: DataSourcesSectionProps) {
       if (source.id === "design") {
         const res = await replaceDesign.mutateAsync(file);
         setRowWarnings(res.warnings ?? []);
+      } else if (source.id === "unit-costs") {
+        await replaceUnitCosts.mutateAsync(file);
       } else {
         await replaceHbu.mutateAsync(file);
       }
@@ -112,6 +117,19 @@ export function DataSourcesSection({ slug }: DataSourcesSectionProps) {
           e.target.value = "";
         }}
       />
+      <input
+        ref={unitCostInputRef}
+        type="file"
+        accept=".csv,text/csv"
+        className="data-source-file-input"
+        tabIndex={-1}
+        aria-hidden
+        onChange={(e) => {
+          const source = sources.find((s) => s.id === "unit-costs");
+          if (source) void handleFile(source, e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
       {rowWarnings.length > 0 ? (
         <div className="banner-warn mb-16" role="status">
           <div className="warn-title">Import Warning</div>
@@ -148,6 +166,7 @@ export function DataSourcesSection({ slug }: DataSourcesSectionProps) {
                 disabled={busy}
                 onClick={() => {
                   if (source.id === "design") designInputRef.current?.click();
+                  else if (source.id === "unit-costs") unitCostInputRef.current?.click();
                   else hbuInputRef.current?.click();
                 }}
               >
