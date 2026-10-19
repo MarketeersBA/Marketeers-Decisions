@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createBrowserRouter, Navigate, Outlet, useLocation, useParams, useSearchParams } from "react-router-dom";
 
 import { PageLoading } from "./components/PageLoading";
+import { StudyRequiredNotice } from "./components/StudyRequiredNotice";
 import { PageActiveProvider } from "./hooks/usePageActive";
 import { useAuth } from "./auth/AuthProvider";
 import { HomePage } from "./pages/HomePage";
@@ -39,7 +40,7 @@ function RequireSession() {
   if (restoring) {
     return <PageLoading label="Restoring session…" />;
   }
-  if (!session) return <Navigate to="/data-hub" replace />;
+  if (!session) return <StudyRequiredNotice />;
   return <Outlet />;
 }
 

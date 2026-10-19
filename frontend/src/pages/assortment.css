@@ -115,7 +115,7 @@
 }
 
 .assortment-matrix .cell-watch {
-  color: var(--amber-deep, #a8721b);
+  color: var(--brand, #002d62);
   font-weight: 600;
 }
 
@@ -370,7 +370,7 @@
 }
 
 .assortment-dot.cell-watch {
-  background: var(--amber-deep, #a8721b);
+  background: var(--brand, #002d62);
 }
 
 .assortment-dot.cell-out {

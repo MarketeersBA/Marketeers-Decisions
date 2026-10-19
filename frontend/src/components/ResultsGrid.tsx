@@ -8,6 +8,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from "react-dom";
 
 import type { CellValue, ResultRow } from "../api/types";
+import { AppSelect } from "./AppSelect";
 import { asCellValue, discreteLevelIndex, formatDiscreteCellValue, isDiscreteEditableColumn, isNumericEditableColumn, parseCellInput, valuesEqual } from "../lib/cellValue";
 import { ratioIndexColor, relativeShareColor, resolveShareColorThreshold, type ShareColorClass } from "../lib/shareColor";
 import { columnDecimals, fmtNumber, isNumericColumn } from "../shell/format";
@@ -260,24 +261,18 @@ function EditableDiscreteCell({
 }) {
   const currentIndex = discreteLevelIndex(value ?? null, levels);
   return (
-    <select
-      className="cell-input cell-select"
-      value={currentIndex ?? ""}
-      aria-label={`${column} for ${productName}`}
-      onClick={(e) => e.stopPropagation()}
-      onChange={(e) => {
-        const next = Number(e.target.value);
+    <AppSelect
+      className="cell-select"
+      ariaLabel={`${column} for ${productName}`}
+      value={currentIndex == null ? "" : String(currentIndex)}
+      items={levels.map((label, idx) => ({ value: String(idx + 1), label }))}
+      onChange={(nextValue) => {
+        const next = Number(nextValue);
         if (!Number.isFinite(next) || next < 1) return;
         if (next === currentIndex) return;
         onCommit(productName, column, next);
       }}
-    >
-      {levels.map((label, idx) => (
-        <option key={`${label}-${idx}`} value={idx + 1}>
-          {label}
-        </option>
-      ))}
-    </select>
+    />
   );
 }
 
@@ -803,11 +798,12 @@ export function ResultsGrid({
             const isSpecial = isGroupRow || isPlaceholder;
             const excluded = row.original["Selected"] === false && !isSpecial;
             const canToggle = isGroup && Boolean(onToggleGroup);
+            const skuShadeClass = !isGroup && !isPlaceholder ? "sku-row" : "";
 
             return (
               <tr
                 key={row.id}
-                className={`${excluded ? "excluded" : ""} ${isGroup ? "group-header" : ""} ${isPlaceholder ? "group-placeholder-row" : ""}`}
+                className={`${excluded ? "excluded" : ""} ${isGroup ? "group-header" : ""} ${isPlaceholder ? "group-placeholder-row" : ""} ${skuShadeClass}`}
                 onClick={
                   canToggle
                     ? () => onToggleGroup?.(String(row.original["Product Name"]).replace("GROUP:", ""))

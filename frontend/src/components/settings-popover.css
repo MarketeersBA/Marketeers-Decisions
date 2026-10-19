@@ -101,13 +101,14 @@
   font: inherit;
 }
 
-.settings-popover .settings-row select {
+.settings-popover .settings-app-select {
+  width: 168px;
   max-width: 168px;
-  padding: 4px 6px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  font: inherit;
-  background: var(--surface);
+}
+
+.settings-popover .settings-app-select .app-select-trigger {
+  padding: 4px 8px;
+  font-size: 13px;
 }
 
 .settings-popover-hint {

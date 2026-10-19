@@ -24,7 +24,7 @@ const SCENARIO_COLORS = [
   "#1A6B4A",
   "#8B1E32",
   "#0A3D7A",
-  "#C9A227",
+  "#1F4E89",
   "#7480A5",
 ];
 

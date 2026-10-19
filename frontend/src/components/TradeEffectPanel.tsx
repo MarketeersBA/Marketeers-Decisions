@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   Bar,
   CartesianGrid,
+  Cell,
   ComposedChart,
   LabelList,
   Legend,
@@ -19,8 +20,25 @@ import { useAnalytics } from "../api/hooks";
 import { usePageActive } from "../hooks/usePageActive";
 import { rollupSomSopByBrand, type TradeEffectBrandGroup, type TradeEffectPoint } from "./tradeEffectUtils";
 
-const SOM_COLOR = "#4F81BD";
-const BRAND_SHARE_COLOR = "#E8A317";
+const BRAND_SHARE_COLOR = "#002D62";
+const BRAND_COLORS = [
+  "#002D62",
+  "#1F4E89",
+  "#3D6FA8",
+  "#5C8EC4",
+  "#7AADD6",
+  "#0A3D7A",
+  "#163E6B",
+  "#4A7AAB",
+  "#8FB8DC",
+  "#24598F",
+  "#6B9BC8",
+  "#123A66",
+];
+
+function brandColor(index: number): string {
+  return BRAND_COLORS[index % BRAND_COLORS.length];
+}
 
 type ChartView = "columns" | "scatter";
 
@@ -54,7 +72,10 @@ export function TradeEffectPanel({ slug, brandGroups, ownSkuNames }: Props) {
     return rollupSomSopByBrand(rows, brandGroups, ownSkuNames);
   }, [data, brandGroups, ownSkuNames]);
 
-  const ownBrands = useMemo(() => points.filter((point) => point.own), [points]);
+  const ownBrands = useMemo(
+    () => points.filter((point) => point.own).map((brand, index) => ({ ...brand, color: brandColor(index) })),
+    [points],
+  );
   const ownBrandKey = ownBrands.map((brand) => brand.name).join("\0");
 
   useEffect(() => {
@@ -121,8 +142,9 @@ export function TradeEffectPanel({ slug, brandGroups, ownSkuNames }: Props) {
         <fieldset className="trade-effect-series">
           <legend className="trade-effect-field-label">Series</legend>
           <div className="trade-effect-series-list">
-            <label className="trade-effect-series-item trade-effect-series-all">
+            <label className="trade-effect-series-item trade-effect-series-all" style={{ "--series": BRAND_SHARE_COLOR } as CSSProperties}>
               <input
+                className="trade-effect-check"
                 type="checkbox"
                 checked={allSeriesSelected}
                 onChange={toggleAllSeries}
@@ -130,8 +152,9 @@ export function TradeEffectPanel({ slug, brandGroups, ownSkuNames }: Props) {
               <span>Select all</span>
             </label>
             {ownBrands.map((brand) => (
-              <label key={brand.name} className="trade-effect-series-item">
+              <label key={brand.name} className="trade-effect-series-item" style={{ "--series": brand.color } as CSSProperties}>
                 <input
+                  className="trade-effect-check"
                   type="checkbox"
                   checked={series.has(brand.name)}
                   onChange={() => toggleSeries(brand.name)}
@@ -193,15 +216,15 @@ export function TradeEffectPanel({ slug, brandGroups, ownSkuNames }: Props) {
                 />
                 <Scatter
                   data={selectedRows}
-                  fill={SOM_COLOR}
                   name="Own brands"
                   isAnimationActive={false}
-                  shape={(props: { cx?: number; cy?: number; payload?: TradeEffectPoint }) => {
+                  shape={(props: { cx?: number; cy?: number; payload?: TradeEffectPoint & { color?: string } }) => {
                     if (props.cx == null || props.cy == null) return <g />;
+                    const color = props.payload?.color ?? BRAND_SHARE_COLOR;
                     return (
                       <g>
-                        <circle cx={props.cx} cy={props.cy} r={6} fill={SOM_COLOR} />
-                        <text x={props.cx + 8} y={props.cy + 4} fontSize={12} fill="#101A2E">
+                        <circle cx={props.cx} cy={props.cy} r={6} fill={color} />
+                        <text x={props.cx + 8} y={props.cy + 4} fontSize={12} fill={color}>
                           {props.payload?.name}
                         </text>
                       </g>
@@ -231,7 +254,26 @@ export function TradeEffectPanel({ slug, brandGroups, ownSkuNames }: Props) {
   );
 }
 
-function SomSopColumnsChart({ rows }: { rows: TradeEffectPoint[] }) {
+function TradeEffectLegend({ colors }: { colors: string[] }) {
+  return (
+    <ul className="trade-effect-chart-legend">
+      <li>
+        <span className="trade-effect-legend-line" aria-hidden />
+        Brand Share
+      </li>
+      <li>
+        <span className="trade-effect-legend-bars" aria-hidden>
+          {colors.slice(0, 4).map((color) => (
+            <i key={color} style={{ background: color }} />
+          ))}
+        </span>
+        SOM
+      </li>
+    </ul>
+  );
+}
+
+function SomSopColumnsChart({ rows }: { rows: Array<TradeEffectPoint & { color: string }> }) {
   const maxValue = Math.max(1, ...rows.flatMap((row) => [row.som, row.sop]));
   const yMax = Math.ceil(maxValue * 1.3);
 
@@ -255,8 +297,11 @@ function SomSopColumnsChart({ rows }: { rows: TradeEffectPoint[] }) {
           formatter={(value, name) => [fmtPctLabel(value), String(name)]}
           labelFormatter={(label) => String(label)}
         />
-        <Legend />
-        <Bar dataKey="som" name="SOM" fill={SOM_COLOR} maxBarSize={48} isAnimationActive={false}>
+        <Legend content={() => <TradeEffectLegend colors={rows.map((row) => row.color)} />} />
+        <Bar dataKey="som" name="SOM" maxBarSize={48} isAnimationActive={false}>
+          {rows.map((row) => (
+            <Cell key={row.name} fill={row.color} />
+          ))}
           <LabelList dataKey="som" position="top" formatter={fmtPctLabel} style={{ fontSize: 11, fill: "#1e3a5f" }} />
         </Bar>
         <Line
@@ -265,14 +310,17 @@ function SomSopColumnsChart({ rows }: { rows: TradeEffectPoint[] }) {
           name="Brand Share"
           stroke={BRAND_SHARE_COLOR}
           strokeWidth={2}
-          dot={{ r: 4, fill: BRAND_SHARE_COLOR }}
+          dot={(props: { cx?: number; cy?: number; payload?: { color?: string } }) => {
+            if (props.cx == null || props.cy == null) return <g />;
+            return <circle cx={props.cx} cy={props.cy} r={4} fill={props.payload?.color ?? BRAND_SHARE_COLOR} />;
+          }}
           isAnimationActive={false}
         >
           <LabelList
             dataKey="sop"
             position="top"
             formatter={fmtPctLabel}
-            style={{ fontSize: 11, fill: "#8a5a00" }}
+            style={{ fontSize: 11, fill: BRAND_SHARE_COLOR }}
           />
         </Line>
       </ComposedChart>

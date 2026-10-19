@@ -224,24 +224,36 @@
   z-index: 20;
 }
 .context-bar {
-  height: var(--topbar-height);
-  flex: 0 0 var(--topbar-height);
+  min-height: 64px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+}
+.ctx-leading {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 16px;
+  gap: 14px;
+  min-width: 0;
+  justify-self: start;
+}
+.ctx-trailing {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  justify-self: end;
+  min-width: max-content;
 }
 .context-bar-filters {
-  height: 40px;
-  flex: 0 0 40px;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 0 16px;
+  flex-wrap: wrap;
+  justify-self: center;
 }
 .validation-score-chip {
   display: inline-flex;
@@ -268,7 +280,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
 }
 .validation-confidence-chip {
@@ -341,11 +353,53 @@
   font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.02em;
-  line-height: 1.1;
-  color: #0f172a;
+  line-height: 1.15;
+  color: var(--brand);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.page-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  margin: 0;
+  padding: 0 10px 0 12px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  cursor: pointer;
+}
+.page-filter:hover,
+.page-filter.is-open {
+  border-color: #b7c3d4;
+  background: #f8fafc;
+}
+.page-filter.is-open {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(0, 45, 98, 0.08);
+  background: #fff;
+}
+.page-filter-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  line-height: 1;
+}
+.page-filter-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1;
+}
+.page-filter-chevron {
+  color: var(--text-muted);
+  transition: transform 0.15s ease;
+}
+.page-filter-chevron.is-open {
+  transform: rotate(180deg);
 }
 
 .chip-btn {
