@@ -38,7 +38,11 @@ export function DataHubPage() {
         <>
           <section className="data-hub-section data-hub-project-row">
             <DataSourcesSection slug={session.slug} />
-            <StudyProjectPanel slug={session.slug} onStudyDeleted={handleStudyDeleted} />
+            <StudyProjectPanel
+              slug={session.slug}
+              onStudyDeleted={handleStudyDeleted}
+              onUnselect={() => setSession(null)}
+            />
           </section>
           <div className="data-hub-section">
             <ModelValidationPanel slug={session.slug} />
@@ -55,8 +59,16 @@ export function DataHubPage() {
               <span className="data-hub-change-project-current" dir="auto">
                 {session.study.studyName}
               </span>
-              <span className={`data-hub-change-project-caret${studiesExpanded ? " is-open" : ""}`} aria-hidden>
-                ▾
+              <span className={`model-validation-caret${studiesExpanded ? " is-open" : ""}`} aria-hidden>
+                <svg width="14" height="14" viewBox="0 0 18 18" fill="none">
+                  <path
+                    d="M4.5 7.25 9 11.75 13.5 7.25"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </span>
             </button>
             {studiesExpanded ? (
@@ -67,6 +79,10 @@ export function DataHubPage() {
                   navigateOnOpen={false}
                   onOpenSuccess={() => setStudiesExpanded(false)}
                   onStudyDeleted={handleStudyDeleted}
+                  onUnselect={() => {
+                    setSession(null);
+                    setStudiesExpanded(false);
+                  }}
                 />
                 <section className="data-hub-section data-hub-upload-in-panel" id="upload-study">
                   <h2 className="data-hub-section-title">Upload study</h2>
@@ -86,7 +102,11 @@ export function DataHubPage() {
             Click a study row to open it. Use the project toolbar for edit, scenarios, display
             units, or delete.
           </p>
-          <StudyManager navigateOnOpen={false} onStudyDeleted={handleStudyDeleted} />
+          <StudyManager
+            navigateOnOpen={false}
+            onStudyDeleted={handleStudyDeleted}
+            onUnselect={() => setSession(null)}
+          />
         </section>
       )}
 

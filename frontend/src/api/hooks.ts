@@ -45,6 +45,7 @@ export function useStudyDataSources(slug: string | undefined) {
     queryKey: ["studyDataSources", slug],
     queryFn: () => api.get<StudyDataSourcesResponse>(`/api/studies/${slug}/data-sources`),
     enabled: Boolean(slug),
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -129,6 +130,7 @@ export function useValidationWaves(slug: string | undefined) {
     queryFn: () =>
       api.get<{ waves: ValidationWaveListItem[] }>(`/api/studies/${slug}/validation`),
     enabled: Boolean(slug),
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -138,6 +140,7 @@ export function useValidationSeries(slug: string | undefined) {
     queryFn: () =>
       api.get<ValidationSeriesData>(`/api/studies/${slug}/validation/series`),
     enabled: Boolean(slug),
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -360,6 +363,7 @@ export function useStudyMeta(slug: string | undefined) {
     queryFn: () =>
       api.get<StudyMetaDisplay>(`/api/studies/${slug}/meta`),
     enabled: Boolean(slug),
+    placeholderData: keepPreviousData,
   });
 }
 

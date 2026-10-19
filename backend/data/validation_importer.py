@@ -9,7 +9,7 @@ from typing import Any
 
 import pandas as pd
 
-from data.excel_importer import FileSource, _read_sheet, _seek_start
+from data.excel_importer import FileSource, _read_sheet, _seek_start, format_cell_text
 from data.validation_store import ValidationWave, ValidationWaveProduct
 from model.study_schema import AttributeDef, StudyDocument
 
@@ -89,10 +89,10 @@ def _attr_value_from_row(
     if attr.attr_type == "Discrete":
         if attr.level_names:
             try:
-                return attr.level_names.index(str(val).strip()) + 1
+                return attr.level_names.index(format_cell_text(val)) + 1
             except ValueError:
-                return str(val).strip()
-        return str(val).strip()
+                return format_cell_text(val)
+        return format_cell_text(val)
     try:
         return float(val)
     except (TypeError, ValueError):

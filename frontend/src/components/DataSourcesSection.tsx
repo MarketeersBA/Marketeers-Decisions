@@ -69,7 +69,7 @@ export function DataSourcesSection({ slug }: DataSourcesSectionProps) {
     }
   };
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return <div className="panel data-sources-loading">Loading data sources…</div>;
   }
 

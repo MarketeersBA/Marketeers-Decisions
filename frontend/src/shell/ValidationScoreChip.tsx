@@ -37,7 +37,7 @@ export function ValidationScoreChip() {
 
   if (!session) return null;
 
-  if (isLoading) {
+  if (isLoading && !series) {
     return (
       <div className="validation-bar-chips">
         <span className="validation-score-chip loading">Validation…</span>
