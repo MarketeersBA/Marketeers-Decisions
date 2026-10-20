@@ -104,10 +104,6 @@ export function SaveScenarioButton({
                 onChange={(e) => setDescription(e.target.value)}
               />
             </div>
-            <p className="panel-hint">
-              Model validation uses workbooks uploaded on{" "}
-              <strong>Data Hub &amp; Trust</strong>, not saved scenarios.
-            </p>
           </div>
 
           <div className="dialog-footer">

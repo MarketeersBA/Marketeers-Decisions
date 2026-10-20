@@ -213,7 +213,7 @@ function sortSkusBySize(skus: SkuMetrics[]): SkuMetrics[] {
   });
 }
 
-const TIER_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316"];
+const TIER_COLORS = ["#002d62", "#10b981", "#0a3d7a", "#8b5cf6", "#ec4899", "#06b6d4", "#1f4e89"];
 
 function tierColor(classIdx: number): string {
   return TIER_COLORS[classIdx % TIER_COLORS.length];

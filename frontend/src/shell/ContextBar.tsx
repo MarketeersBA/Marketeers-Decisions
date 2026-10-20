@@ -40,6 +40,27 @@ function Popover({
   );
 }
 
+function FilterChevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      className={`page-filter-chevron${open ? " is-open" : ""}`}
+      width="14"
+      height="14"
+      viewBox="0 0 18 18"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M4.5 7.25 9 11.75 13.5 7.25"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function FilterDropdown({
   label,
   options,
@@ -55,14 +76,19 @@ function FilterDropdown({
 
   return (
     <div className="filter-dropdown-wrap">
-      <div
-        className="chip-btn filter"
+      <button
+        type="button"
+        className={`page-filter${open ? " is-open" : ""}`}
         onClick={() => setOpen((o) => !o)}
-        title={label}
+        aria-haspopup="listbox"
+        aria-expanded={open}
       >
-        <span dir="auto">{value || label}</span>
-        <span className={`caret${open ? " up" : ""}`}>▾</span>
-      </div>
+        <span className="page-filter-label">{label}</span>
+        <span className="page-filter-value" dir="auto">
+          {value || "All"}
+        </span>
+        <FilterChevron open={open} />
+      </button>
       <Popover isOpen={open} onClose={() => setOpen(false)} local width={200}>
         <div className="filter-option-list" role="listbox">
           {options.length === 0 ? (
@@ -123,50 +149,51 @@ export function ContextBar({
   return (
     <div className="context-bar-stack">
       <div className="context-bar">
-        <button
-          type="button"
-          className="shell-menu-btn"
-          onClick={onToggleSidebar}
-          aria-label={collapsed ? "Show sidebar" : "Hide sidebar"}
-          title={collapsed ? "Show sidebar" : "Hide sidebar"}
-          aria-pressed={!collapsed}
-        >
-          <MenuIcon />
-        </button>
-        <span className="shell-menu-rule" aria-hidden="true" />
-        {section ? (
-          <h1 className="ctx-section-title" dir="auto">
-            {section.title}
-          </h1>
-        ) : null}
-
-        <div className="ctx-spacer"></div>
-
-        <ValidationScoreChip />
-      </div>
-
-      {showFilters ? (
-        <div className="context-bar-filters">
-          <FilterDropdown
-            label="Category"
-            options={EMPTY_OPTIONS}
-            value={category}
-            onChange={setCategory}
-          />
-          <FilterDropdown
-            label="Retailer"
-            options={EMPTY_OPTIONS}
-            value={retailer}
-            onChange={setRetailer}
-          />
-          <FilterDropdown
-            label="Channel"
-            options={EMPTY_OPTIONS}
-            value={channel}
-            onChange={setChannel}
-          />
+        <div className="ctx-leading">
+          <button
+            type="button"
+            className="shell-menu-btn"
+            onClick={onToggleSidebar}
+            aria-label={collapsed ? "Show sidebar" : "Hide sidebar"}
+            title={collapsed ? "Show sidebar" : "Hide sidebar"}
+            aria-pressed={!collapsed}
+          >
+            <MenuIcon />
+          </button>
+          {section ? (
+            <h1 className="ctx-section-title" dir="auto">
+              {section.title}
+            </h1>
+          ) : null}
         </div>
-      ) : null}
+        {showFilters ? (
+          <div className="context-bar-filters" role="group" aria-label="Workspace filters">
+            <FilterDropdown
+              label="Category"
+              options={EMPTY_OPTIONS}
+              value={category}
+              onChange={setCategory}
+            />
+            <FilterDropdown
+              label="Retailer"
+              options={EMPTY_OPTIONS}
+              value={retailer}
+              onChange={setRetailer}
+            />
+            <FilterDropdown
+              label="Channel"
+              options={EMPTY_OPTIONS}
+              value={channel}
+              onChange={setChannel}
+            />
+          </div>
+        ) : (
+          <div className="context-bar-filters" />
+        )}
+        <div className="ctx-trailing">
+          <ValidationScoreChip />
+        </div>
+      </div>
     </div>
   );
 }

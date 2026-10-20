@@ -1,5 +1,3 @@
-import { Link } from "react-router-dom";
-
 import type { StudyListItem } from "../api/types";
 import type { StudyDisplayUnitsDraft } from "../hooks/useStudyDisplayUnitsDraft";
 import { StudyDisplayUnitsForm } from "./StudyDisplayUnitsForm";
@@ -100,15 +98,6 @@ export function StudyProjectToolbar({
           </div>
         ) : null}
         <div className="studies-row-actions-buttons study-project-toolbar-actions">
-          {editing ? null : (
-            <Link
-              className="btn-secondary studies-action-btn"
-              to={`/studies/${study.slug}/scenarios`}
-              onClick={(e) => busy && e.preventDefault()}
-            >
-              Scenarios
-            </Link>
-          )}
           {editing ? (
             <>
               <button className="btn-primary studies-action-btn" onClick={onSave} disabled={savePending || busy}>

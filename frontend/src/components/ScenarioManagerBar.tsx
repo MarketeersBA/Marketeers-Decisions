@@ -1,10 +1,225 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { useApplyScenario, useScenarios, useResetSession } from "../api/hooks";
 import type { GroupRow, ResultRow } from "../api/types";
+import { AppSelect } from "./AppSelect";
 import { SaveScenarioButton } from "./SaveScenarioButton";
 import { useSession } from "../stores/sessionStore";
+
+interface ScenarioChipItem {
+  id: string;
+  name: string;
+  description?: string;
+  validation: boolean;
+}
+
+function splitScenarioChips(items: ScenarioChipItem[], fitted: number, activeId: string) {
+  const count = Math.min(Math.max(fitted, 1), items.length);
+  const visible = items.slice(0, count);
+  if (!visible.some((item) => item.id === activeId)) {
+    const active = items.find((item) => item.id === activeId);
+    if (active) visible[visible.length - 1] = active;
+  }
+  const visibleIds = new Set(visible.map((item) => item.id));
+  return { visible, overflow: items.filter((item) => !visibleIds.has(item.id)) };
+}
+
+function ScenarioChipList({
+  scenarios,
+  activeName,
+  busy,
+  onLoadBase,
+  onLoad,
+}: {
+  scenarios: { name: string; description?: string; validation?: boolean }[];
+  activeName: string;
+  busy: boolean;
+  onLoadBase: () => void;
+  onLoad: (name: string) => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const [fitted, setFitted] = useState(scenarios.length + 1);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const items = useMemo<ScenarioChipItem[]>(
+    () => [
+      { id: "", name: "Base Scenario", validation: false },
+      ...scenarios.map((scenario) => ({
+        id: scenario.name,
+        name: scenario.name,
+        description: scenario.description,
+        validation: Boolean(scenario.validation),
+      })),
+    ],
+    [scenarios],
+  );
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const measure = measureRef.current;
+    if (!container || !measure) return;
+
+    const update = () => {
+      const available = container.clientWidth;
+      const chips = Array.from(measure.querySelectorAll<HTMLElement>("[data-chip]"));
+      const more = measure.querySelector<HTMLElement>("[data-more]");
+      const moreWidth = more?.offsetWidth ?? 0;
+      const gap = 8;
+      let used = 0;
+      let fit = 0;
+      for (let i = 0; i < chips.length; i += 1) {
+        const width = chips[i].offsetWidth;
+        const gapBefore = fit > 0 ? gap : 0;
+        const reserve = i < chips.length - 1 ? gap + moreWidth : 0;
+        if (used + gapBefore + width + reserve > available) break;
+        used += gapBefore + width;
+        fit = i + 1;
+      }
+      setFitted(Math.max(1, fit));
+    };
+
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [items]);
+
+  const { visible, overflow } = splitScenarioChips(items, fitted, activeName);
+  const menuQuery = query.trim().toLowerCase();
+  const menuItems = menuQuery
+    ? overflow.filter(
+        (item) =>
+          item.name.toLowerCase().includes(menuQuery) ||
+          (item.description ?? "").toLowerCase().includes(menuQuery),
+      )
+    : overflow;
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointer = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
+  useEffect(() => {
+    setMenuOpen(false);
+    setQuery("");
+  }, [activeName, scenarios]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    searchRef.current?.focus();
+  }, [menuOpen]);
+
+  const activate = (item: ScenarioChipItem) => {
+    setMenuOpen(false);
+    if (item.id) onLoad(item.id);
+    else onLoadBase();
+  };
+
+  const chip = (item: ScenarioChipItem, measure = false) => (
+    <button
+      key={item.id || "base"}
+      type="button"
+      data-chip={measure ? "" : undefined}
+      role={measure ? undefined : "option"}
+      aria-selected={measure ? undefined : activeName === item.id}
+      className={`scenario-chip ${!measure && activeName === item.id ? "active" : ""}`}
+      disabled={measure ? undefined : busy}
+      title={item.description || item.name}
+      onClick={measure ? undefined : () => activate(item)}
+    >
+      {item.name}
+      {item.validation ? (
+        <span className="scenario-chip-badge" title="Legacy validation scenario">
+          V
+        </span>
+      ) : null}
+    </button>
+  );
+
+  return (
+    <div className="scenario-chip-list" ref={containerRef} role="listbox" aria-label="Saved scenarios">
+      <div className="scenario-chip-measure" ref={measureRef} aria-hidden="true">
+        {items.map((item) => chip(item, true))}
+        <button type="button" className="scenario-chip" data-more="" tabIndex={-1}>
+          +{items.length}
+        </button>
+      </div>
+      {visible.map((item) => chip(item))}
+      {overflow.length > 0 ? (
+        <div className="scenario-more" ref={menuRef}>
+          <button
+            type="button"
+            className="scenario-chip scenario-more-btn"
+            aria-expanded={menuOpen}
+            aria-haspopup="listbox"
+            disabled={busy}
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            +{overflow.length}
+            <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true">
+              <path
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4 6.5 8 10.5 12 6.5"
+              />
+            </svg>
+          </button>
+          {menuOpen ? (
+            <div className="scenario-more-menu">
+              <input
+                ref={searchRef}
+                className="scenario-more-search"
+                type="search"
+                value={query}
+                placeholder="Search scenarios"
+                aria-label="Search scenarios"
+                onChange={(event) => setQuery(event.target.value)}
+              />
+              <div className="scenario-more-options" role="listbox" aria-label="More scenarios">
+                {menuItems.map((item) => (
+                  <button
+                    key={item.id || "base"}
+                    type="button"
+                    role="option"
+                    aria-selected={activeName === item.id}
+                    className={`scenario-more-item ${activeName === item.id ? "active" : ""}`}
+                    disabled={busy}
+                    onClick={() => activate(item)}
+                  >
+                    {item.name}
+                    {item.validation ? <span className="scenario-chip-badge">V</span> : null}
+                  </button>
+                ))}
+                {menuItems.length === 0 ? (
+                  <p className="scenario-more-empty">No matching scenarios</p>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 interface Props {
   pendingChanges?: number;
@@ -204,39 +419,19 @@ export function ScenarioManagerBar({
   return (
     <>
       <div className={`scenario-manager${busy ? " is-busy" : ""}`} aria-busy={busy}>
+        <div className="scenario-manager-heading">
+          <h3 className="scenario-manager-title">Scenarios</h3>
+          <p className="scenario-manager-sub">Choose a scenario to load it into the simulation.</p>
+        </div>
+        <div className="scenario-manager-row">
         <div className="scenario-manager-left">
-          <span className="scenario-manager-label">Scenarios</span>
-          <div className="scenario-chip-list" role="listbox" aria-label="Saved scenarios">
-            <button
-              type="button"
-              role="option"
-              aria-selected={!activeName}
-              className={`scenario-chip ${!activeName ? "active" : ""}`}
-              disabled={busy}
-              onClick={loadBase}
-            >
-              Base Scenario
-            </button>
-            {scenarios.map((sc) => (
-              <button
-                key={sc.name}
-                type="button"
-                role="option"
-                aria-selected={activeName === sc.name}
-                className={`scenario-chip ${activeName === sc.name ? "active" : ""}`}
-                disabled={busy}
-                onClick={() => loadNamed(sc.name)}
-                title={sc.description || sc.name}
-              >
-                {sc.name}
-                {sc.validation ? (
-                  <span className="scenario-chip-badge" title="Legacy validation scenario">
-                    V
-                  </span>
-                ) : null}
-              </button>
-            ))}
-          </div>
+          <ScenarioChipList
+            scenarios={scenarios}
+            activeName={activeName}
+            busy={busy}
+            onLoadBase={loadBase}
+            onLoad={loadNamed}
+          />
         </div>
 
         <div className="scenario-manager-actions">
@@ -263,6 +458,7 @@ export function ScenarioManagerBar({
             </Link>
           ) : null}
         </div>
+        </div>
       </div>
 
       <div className="bulk-actions-card">
@@ -276,46 +472,54 @@ export function ScenarioManagerBar({
         <div className="bulk-actions-fields">
           <label className="bulk-actions-field">
             <span>{brandType || "Brand"}</span>
-            <select value={bulkBrand} onChange={(e) => setBulkBrand(e.target.value)}>
-              <option value="All">
-                {/brand/i.test(brandType) || !brandType ? "All brands" : `All ${brandType}`}
-              </option>
-              {brandGroups.map((g) => (
-                <option key={g.Name} value={g.Name}>
-                  {g.Name}
-                </option>
-              ))}
-            </select>
+            <AppSelect
+              ariaLabel={brandType || "Brand"}
+              value={bulkBrand}
+              onChange={setBulkBrand}
+              items={[
+                {
+                  value: "All",
+                  label: /brand/i.test(brandType) || !brandType ? "All brands" : `All ${brandType}`,
+                },
+                ...brandGroups.map((g) => ({ value: g.Name, label: g.Name })),
+              ]}
+            />
           </label>
           {otherTypes.some((type) => (groupsByType[type] ?? []).length > 0) ? (
             <label className="bulk-actions-field">
               <span>Group</span>
-              <select value={bulkGroup} onChange={(e) => setBulkGroup(e.target.value)}>
-                <option value="">
-                  None — use {brandType || "Brand"}, or check rows
-                </option>
-                {otherTypes.map((type) => {
+              <AppSelect
+                ariaLabel="Group"
+                value={bulkGroup}
+                onChange={setBulkGroup}
+                items={[
+                  {
+                    value: "",
+                    label: `None — use ${brandType || "Brand"}, or check rows`,
+                  },
+                ]}
+                groups={otherTypes.flatMap((type) => {
                   const members = groupsByType[type] ?? [];
-                  if (members.length === 0) return null;
-                  return (
-                    <optgroup key={type} label={type}>
-                      {members.map((g) => {
+                  if (members.length === 0) return [];
+                  return [
+                    {
+                      label: type,
+                      items: members.map((g) => {
                         const total = (g.productNames ?? []).length;
                         const inScope = countNamesForBrand(g.productNames ?? []);
                         const countLabel =
                           bulkBrand !== "All" && inScope !== total
                             ? `${inScope} of ${total} SKUs`
                             : `${inScope} SKU${inScope === 1 ? "" : "s"}`;
-                        return (
-                          <option key={`${type}\t${g.Name}`} value={`${type}\t${g.Name}`}>
-                            {g.Name} ({countLabel})
-                          </option>
-                        );
-                      })}
-                    </optgroup>
-                  );
+                        return {
+                          value: `${type}\t${g.Name}`,
+                          label: `${g.Name} (${countLabel})`,
+                        };
+                      }),
+                    },
+                  ];
                 })}
-              </select>
+              />
             </label>
           ) : null}
           <label className="bulk-actions-field bulk-actions-pct">

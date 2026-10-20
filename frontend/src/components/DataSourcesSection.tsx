@@ -70,7 +70,13 @@ export function DataSourcesSection({ slug }: DataSourcesSectionProps) {
   };
 
   if (isLoading && !data) {
-    return <div className="panel data-sources-loading">Loading data sources…</div>;
+    return (
+      <div className="panel data-sources-loading" role="status" aria-label="Loading data sources">
+        <span className="data-sources-skeleton" />
+        <span className="data-sources-skeleton" />
+        <span className="data-sources-skeleton" />
+      </div>
+    );
   }
 
   if (isError) {

@@ -109,8 +109,18 @@ export function ScenariosPage() {
             bottom.
           </p>
         </div>
-        <Link className="btn-secondary scenarios-page-back" to="/data-hub">
-          ← Back to Studies
+        <Link className="scenarios-page-back" to="/runner">
+          <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+            <path
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M10 3.5 5.5 8 10 12.5"
+            />
+          </svg>
+          Back to Simulation
         </Link>
       </header>
 
@@ -192,11 +202,15 @@ export function ScenariosPage() {
           One scenario per sheet. Each sheet needs a Product Name column and New * attribute columns.
         </p>
         <div className="scenarios-import-row">
-          <input
-            type="file"
-            accept=".xlsx,.xls"
-            onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
-          />
+          <label className="scenarios-file-btn">
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
+            />
+            Choose file
+          </label>
+          <span className="scenarios-file-name">{file ? file.name : "No file chosen"}</span>
           <button
             type="button"
             className="btn-primary btn-sm"

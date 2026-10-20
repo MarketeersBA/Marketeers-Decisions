@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { DataSourcesSection } from "../components/DataSourcesSection";
 import { ModelValidationPanel } from "../components/ModelValidationPanel";
@@ -18,10 +18,15 @@ export function DataHubPage() {
   };
   const workspaceMode = session !== null;
   const [studiesExpanded, setStudiesExpanded] = useState(false);
+  const changeProjectRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!studiesExpanded) return;
+    changeProjectRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [studiesExpanded]);
 
   return (
     <div className="data-hub-page">
-      <h1 className="page-title">Data Hub &amp; Trust</h1>
       {workspaceMode ? (
         <p className="page-sub">
           Manage the active project below, review data sources, or expand change project to pick
@@ -48,7 +53,10 @@ export function DataHubPage() {
             <ModelValidationPanel slug={session.slug} />
           </div>
 
-          <section className="data-hub-section data-hub-change-project">
+          <section
+            ref={changeProjectRef}
+            className={`data-hub-section data-hub-change-project${studiesExpanded ? " is-open" : ""}`}
+          >
             <button
               type="button"
               className="data-hub-change-project-toggle"
@@ -99,8 +107,8 @@ export function DataHubPage() {
         <section className="data-hub-section" id="manage-studies">
           <h2 className="data-hub-section-title">Manage studies</h2>
           <p className="data-hub-section-sub">
-            Click a study row to open it. Use the project toolbar for edit, scenarios, display
-            units, or delete.
+            Click a study row to open it. Use the project toolbar for edit, display units, or
+            delete.
           </p>
           <StudyManager
             navigateOnOpen={false}

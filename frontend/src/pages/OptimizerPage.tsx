@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { StudyRequiredNotice } from "../components/StudyRequiredNotice";
 import { usePageActive } from "../hooks/usePageActive";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -79,6 +80,67 @@ function formatMovePct(pct: number): string {
 
 function scenarioNameFromMoves(moves: CompetitorMove[]): string {
   return moves.map((m) => `${m.brand} ${formatMovePct(m.pct)}`).join(" · ");
+}
+
+type MockReactionInsight = {
+  label: string;
+  title: string;
+  detail: string;
+};
+
+/** Placeholder copy until the competitor-reaction recommendation API is connected. */
+function mockReactionInsights(
+  focusBrand: string,
+  moves: CompetitorMove[],
+  competitors: { brand: string; share: number }[],
+): MockReactionInsight[] {
+  const top = [...competitors].sort((a, b) => b.share - a.share);
+  const leader = top[0];
+  const second = top[1];
+  const cuts = moves.filter((m) => m.pct < 0);
+  const hikes = moves.filter((m) => m.pct > 0);
+  const brand = focusBrand || "the focus brand";
+  const insights: MockReactionInsight[] = [];
+
+  if (hikes[0]) {
+    const hike = hikes[0];
+    insights.push({
+      label: "Hold",
+      title: `Keep ${brand} at the current price`,
+      detail: `${hike.brand} at ${formatMovePct(hike.pct)} pulls only a thin slice of switchers. Matching that increase would leave the price corridor without a meaningful share gain.`,
+    });
+  } else if (leader) {
+    insights.push({
+      label: "Hold",
+      title: `Keep ${brand} at the current price`,
+      detail: `${leader.brand} is the closest switcher, at ${Math.round(leader.share)}% of switching share. With no competitor increase selected, a price rise on ${brand} is not supported.`,
+    });
+  }
+
+  if (cuts[0]) {
+    const cut = cuts[0];
+    insights.push({
+      label: "Do not follow",
+      title: `Do not match ${cut.brand}'s ${formatMovePct(cut.pct)}`,
+      detail: `Following the cut trades contribution margin for volume that mostly stays inside ${cut.brand}'s own pack ladder. Hold price and let that cut fund their share.`,
+    });
+  } else if (second) {
+    insights.push({
+      label: "Watch",
+      title: `Watch ${second.brand} before the next move`,
+      detail: `${second.brand} accounts for about ${Math.round(second.share)}% of switching. A later cut there is the case that would justify revisiting ${brand}.`,
+    });
+  }
+
+  if (leader) {
+    insights.push({
+      label: "Where volume goes",
+      title: `${leader.brand} takes the first lost shopper`,
+      detail: `On a 10% price shock, about ${Math.round(leader.share)}% of switchers leave toward ${leader.brand}. Re-check that anchor before changing ${brand}'s reference SKU.`,
+    });
+  }
+
+  return insights.slice(0, 3);
 }
 
 function formatLimitedBy(key: string | null | undefined): string {
@@ -854,6 +916,45 @@ function interpolatePriceAt(
   return null;
 }
 
+/**
+ * Price where brand volume drop meets the slider cap.
+ * Always returns a price on the sweep so the chart marker follows the slider:
+ * the crossing when the cap binds, the top of the sweep when it never does,
+ * and today's price when the cap is already exceeded.
+ */
+function priceAtMaxVolumeDrop(
+  points: { price: number; value: number | null }[],
+  target: number,
+  currentPrice: number | null,
+): number | null {
+  if (!Number.isFinite(target)) return null;
+  const sorted = [...points]
+    .filter((p) => p.value != null && Number.isFinite(p.value) && p.price > 0)
+    .sort((a, b) => a.price - b.price);
+  if (sorted.length === 0) return null;
+
+  const start = currentPrice ?? sorted[0].price;
+  const fromCurrent = sorted.filter((p) => p.price >= start - 1e-6);
+  const rows = fromCurrent.length > 0 ? fromCurrent : sorted;
+
+  for (let i = 1; i < rows.length; i++) {
+    const prev = rows[i - 1];
+    const next = rows[i];
+    const y0 = prev.value as number;
+    const y1 = next.value as number;
+    if (y0 <= target + 1e-9 && y1 > target + 1e-9) {
+      const span = y1 - y0;
+      const t = Math.abs(span) < 1e-12 ? 1 : (target - y0) / span;
+      const clamped = Math.min(1, Math.max(0, t));
+      return prev.price + clamped * (next.price - prev.price);
+    }
+  }
+
+  const last = rows[rows.length - 1];
+  if ((last.value as number) <= target + 1e-9) return last.price;
+  return rows[0].price;
+}
+
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
@@ -1261,17 +1362,17 @@ function OptRefSkuResponseChart({
       marginFloorPct ?? NaN,
       { maxPrice: currentPrice },
     );
-  const volCapX = interpolatePriceAt(
-    points.map((p) => ({ price: p.price, value: p.brand_volume_drop_pct })),
-    volumeCapPct ?? NaN,
-    { minPrice: currentPrice },
-  ) ?? (
-    finitePrice(volumeCapPrice) != null &&
+  const dropSeries = points.map((p) => ({
+    price: p.price,
+    value: p.brand_volume_drop_pct,
+  }));
+  const volCapX =
+    priceAtMaxVolumeDrop(dropSeries, volumeCapPct ?? NaN, currentPrice) ??
+    (finitePrice(volumeCapPrice) != null &&
     currentPrice != null &&
-    volumeCapPrice! > currentPrice + 0.02
+    volumeCapPrice! >= currentPrice - 0.02
       ? volumeCapPrice!
-      : null
-  );
+      : null);
 
   const priceMarkers = [
     cmFloorX != null
@@ -1297,7 +1398,10 @@ function OptRefSkuResponseChart({
           key: "volume",
           role: "guardrail" as const,
           x: volCapX,
-          shortLabel: "Max vol drop",
+          shortLabel:
+            volumeCapPct != null && Number.isFinite(volumeCapPct)
+              ? `Max vol drop ${volumeCapPct}%`
+              : "Max vol drop",
           color: "#002D62",
         }
       : null,
@@ -1463,9 +1567,10 @@ function OptRefSkuResponseChart({
             />
             {priceMarkers.map((m) => (
               <ReferenceLine
-                key={m.key}
+                key={`${m.key}-${m.x.toFixed(4)}`}
                 yAxisId="index"
                 x={m.x}
+                ifOverflow="extendDomain"
                 stroke={m.color}
                 strokeWidth={m.role === "current" ? 2 : 1.5}
                 strokeDasharray={m.role === "current" ? "5 3" : "3 3"}
@@ -1562,6 +1667,7 @@ function OptRefSkuResponseChart({
             <input
               type="checkbox"
               checked={visible[s.key]}
+              style={{ accentColor: s.color }}
               onChange={() =>
                 setVisible((prev) => ({ ...prev, [s.key]: !prev[s.key] }))
               }
@@ -1618,6 +1724,7 @@ export function OptimizerPage() {
   const [appliedCompMoves, setAppliedCompMoves] = useState<Record<string, number>>({});
   const [reactionMoves, setReactionMoves] = useState<Record<string, number>>({});
   const [reactionError, setReactionError] = useState<string | null>(null);
+  const [reactionInsightsOpen, setReactionInsightsOpen] = useState(false);
 
   // Optimizer always starts from study base prices — ignore the Simulator's active scenario.
   const setup = useMemo(
@@ -2381,7 +2488,7 @@ export function OptimizerPage() {
   const pageGroups = useMemo(() => groupRows(derived.rows), [derived.rows]);
 
   if (!slug) {
-    return <Navigate to="/data-hub" replace />;
+    return <StudyRequiredNotice />;
   }
 
   if (contextLoading) {
@@ -2902,20 +3009,15 @@ export function OptimizerPage() {
                         anchorSku={selectedAnchor?.sku}
                         currencySymbol={display.currencySymbol}
                         marginFloorPrice={corridorBounds?.margin_floor_price}
-                        volumeCapPrice={
-                          corridorBounds?.max_binding_label === "max volume drop"
-                            ? corridorBounds.max?.price
-                            : interpolatePriceAt(
-                                corridorPoints.map((p) => ({
-                                  price: p.price,
-                                  value: p.brand_volume_drop_pct,
-                                })),
-                                shareLossLimit,
-                                {
-                                  minPrice: corridorBounds?.margin_floor_price ?? null,
-                                },
-                              )
-                        }
+                        volumeCapPrice={priceAtMaxVolumeDrop(
+                          corridorPoints.map((p) => ({
+                            price: p.price,
+                            value: p.brand_volume_drop_pct,
+                          })),
+                          shareLossLimit,
+                          Number(corridorPreview?.baseline?.reference_sku_price ?? focusRefPrice) ||
+                            null,
+                        )}
                         marginFloorPct={marginFloor}
                         volumeCapPct={shareLossLimit}
                       />
@@ -3529,7 +3631,11 @@ export function OptimizerPage() {
               </table>
             </div>
             <div className="opt-moves-actions">
-              <button type="button" className="btn-primary">
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => setReactionInsightsOpen(true)}
+              >
                 Recommend a reaction
               </button>
             </div>
@@ -3551,33 +3657,63 @@ export function OptimizerPage() {
                 </>
               )}
             </div>
-          </div>
-        )}
-        
-        {runResult?.menus && (
-          <div className="opt-card opt-dev-box">
-            <h3 className="opt-panel-title">Developer Debug: Menus</h3>
-            <p className="opt-panel-sub">
-              Candidate prices evaluated for each decision SKU.
-            </p>
-            <div className="opt-dev-menus">
-              {Object.entries(runResult.menus).map(([sku, menu]) => (
-                <div key={sku} className="opt-dev-menu-row">
-                  <strong>{sku}</strong>
-                  <div className="opt-dev-menu-prices">
-                    {menu.map(p => {
-                      const isRec = runResult.prices[sku] === p;
-                      return (
-                        <span key={p} className={isRec ? "opt-dev-price-rec" : "opt-dev-price"}>
-                          {display.currencySymbol}
-                          {p.toFixed(2)}
-                        </span>
-                      );
-                    })}
+            {reactionInsightsOpen ? (
+              <div
+                className="dialog-overlay open"
+                role="presentation"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) setReactionInsightsOpen(false);
+                }}
+              >
+                <div
+                  className="dialog-content opt-reaction-dialog"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="reaction-insights-title"
+                >
+                  <div className="dialog-header">
+                    <h3 id="reaction-insights-title">Recommended reaction</h3>
+                    <button
+                      type="button"
+                      className="gp-close"
+                      onClick={() => setReactionInsightsOpen(false)}
+                      aria-label="Close"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div className="dialog-body">
+                    <p className="opt-reaction-dialog-note">
+                      Sample insights for {focusBrand || "the focus brand"}
+                      {reactionMoveList.length > 0
+                        ? `, given ${scenarioNameFromMoves(reactionMoveList)}`
+                        : ""}
+                      . The recommendation service is not connected yet.
+                    </p>
+                    <ul className="opt-reaction-insights">
+                      {mockReactionInsights(focusBrand, reactionMoveList, competitionRows).map(
+                        (insight) => (
+                          <li key={insight.title} className="opt-reaction-insight">
+                            <span className="opt-reaction-insight-label">{insight.label}</span>
+                            <strong>{insight.title}</strong>
+                            <p>{insight.detail}</p>
+                          </li>
+                        ),
+                      )}
+                    </ul>
+                  </div>
+                  <div className="dialog-footer">
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      onClick={() => setReactionInsightsOpen(false)}
+                    >
+                      Close
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ) : null}
           </div>
         )}
 

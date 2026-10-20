@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import { AppSelect } from "./AppSelect";
 import { DEFAULT_CURRENCY_SYMBOL } from "../lib/studyDisplay";
 import { type AppSettings, loadSettings, saveSettings } from "../stores/settingsStore";
 import { useSession } from "../stores/sessionStore";
@@ -94,15 +95,18 @@ export function SettingsPopover() {
             </label>
             <label className="settings-row">
               Share color threshold
-              <select
+              <AppSelect
+                className="settings-app-select"
+                ariaLabel="Share color threshold"
                 value={settings.shareColorThresholdMode}
-                onChange={(e) =>
-                  update("shareColorThresholdMode", e.target.value as AppSettings["shareColorThresholdMode"])
+                onChange={(value) =>
+                  update("shareColorThresholdMode", value as AppSettings["shareColorThresholdMode"])
                 }
-              >
-                <option value="fixed">Fixed % vs B.Share</option>
-                <option value="sigma1">1σ of change rates</option>
-              </select>
+                items={[
+                  { value: "fixed", label: "Fixed % vs B.Share" },
+                  { value: "sigma1", label: "1σ of change rates" },
+                ]}
+              />
             </label>
             {settings.shareColorThresholdMode === "fixed" ? (
               <label className="settings-row">

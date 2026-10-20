@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
-import { Navigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
+import { StudyRequiredNotice } from "../components/StudyRequiredNotice";
 
 import { api } from "../api/client";
 import { useGroups, useRecalculate, useExportSession, useApplySegmentation } from "../api/hooks";
@@ -9,6 +10,7 @@ import { TradeEffectPanel } from "../components/TradeEffectPanel";
 import { ResultsGrid } from "../components/ResultsGrid";
 import { SaveScenarioButton } from "../components/SaveScenarioButton";
 import { ScenarioCompareSection } from "../components/ScenarioCompareSection";
+import { AppSelect } from "../components/AppSelect";
 import { ScenarioManagerBar } from "../components/ScenarioManagerBar";
 import { SettingsPopover } from "../components/SettingsPopover";
 import {
@@ -867,27 +869,24 @@ export function RunnerPage() {
                   onToast={showToast}
                 />
 
-                <label className="export-icon" title="Export">
-                  <span className="export-icon-glyph" aria-hidden="true">⬇</span>
-                  <select
-                    aria-label="Export"
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val === "csv" || val === "xlsx") {
-                        exportSession.mutate({
-                          sessionId: session.sessionId,
-                          format: val,
-                          filename: `${session.study.studyName}_results.${val}`,
-                        });
-                        e.target.value = "";
-                      }
-                    }}
-                  >
-                    <option value="">Export…</option>
-                    <option value="csv">CSV</option>
-                    <option value="xlsx">Excel</option>
-                  </select>
-                </label>
+                <AppSelect
+                  className="export-app-select"
+                  ariaLabel="Export"
+                  value=""
+                  trigger={<span className="export-icon-glyph" aria-hidden="true">⬇</span>}
+                  items={[
+                    { value: "csv", label: "CSV" },
+                    { value: "xlsx", label: "Excel" },
+                  ]}
+                  onChange={(format) => {
+                    if (format !== "csv" && format !== "xlsx") return;
+                    exportSession.mutate({
+                      sessionId: session.sessionId,
+                      format,
+                      filename: `${session.study.studyName}_results.${format}`,
+                    });
+                  }}
+                />
                 <SettingsPopover />
               </div>
             </div>
@@ -907,57 +906,54 @@ export function RunnerPage() {
               {hasOwnFlags ? (
                 <label className="grid-field">
                   <span className="grid-field-label">Owner</span>
-                  <select
-                    className="grid-field-select"
+                  <AppSelect
+                    ariaLabel="Owner"
                     value={ownerFilter}
-                    onChange={(e) => setOwnerFilter(e.target.value as OwnerFilter)}
-                  >
-                    <option value="all">All SKUs</option>
-                    <option value="own">Own only</option>
-                    <option value="comp">Competitor only</option>
-                  </select>
+                    onChange={(value) => setOwnerFilter(value as OwnerFilter)}
+                    items={[
+                      { value: "all", label: "All SKUs" },
+                      { value: "own", label: "Own only" },
+                      { value: "comp", label: "Competitor only" },
+                    ]}
+                  />
                 </label>
               ) : null}
 
               {hasGroups ? (
                 <label className="grid-field">
                   <span className="grid-field-label">Group by</span>
-                  <select
-                    className="grid-field-select"
+                  <AppSelect
+                    ariaLabel="Group by"
                     value={groupType}
-                    onChange={(e) => loadGroups(e.target.value)}
-                  >
-                    {session.groupTypes.map((gt) => (
-                      <option key={gt} value={gt}>{gt}</option>
-                    ))}
-                  </select>
+                    onChange={loadGroups}
+                    items={session.groupTypes.map((gt) => ({ value: gt, label: gt }))}
+                  />
                 </label>
               ) : null}
 
               {hasSegments ? (
                 <label className="grid-field">
                   <span className="grid-field-label">Segment by</span>
-                  <select
-                    className="grid-field-select"
+                  <AppSelect
+                    ariaLabel="Segment by"
                     value={segmentSelectValue}
                     disabled={applySeg.isPending}
-                    onChange={(e) => applySegmentBy(e.target.value)}
-                  >
-                    <option value={SEGMENT_ALL}>All</option>
-                    {seg.dimensions.map((d) => {
+                    onChange={applySegmentBy}
+                    items={[{ value: SEGMENT_ALL, label: "All" }]}
+                    groups={seg.dimensions.flatMap((d) => {
                       const members = seg.membersByKey[d.assignmentKey] ?? [];
-                      if (members.length === 0) return null;
-                      return (
-                        <optgroup key={d.assignmentKey} label={d.label}>
-                          {members.map((m) => (
-                            <option key={`${d.assignmentKey}:${m}`} value={encodeSegmentOption(d.assignmentKey, m)}>
-                              {m}
-                            </option>
-                          ))}
-                        </optgroup>
-                      );
+                      if (members.length === 0) return [];
+                      return [
+                        {
+                          label: d.label,
+                          items: members.map((m) => ({
+                            value: encodeSegmentOption(d.assignmentKey, m),
+                            label: m,
+                          })),
+                        },
+                      ];
                     })}
-                  </select>
+                  />
                 </label>
               ) : null}
             </div>
