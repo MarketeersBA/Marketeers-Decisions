@@ -264,9 +264,11 @@ Where:
 - **SU** — sales unit (study scaling)
 - **volume share** — share from step 3
 - **price** — scenario price
-- **pack size** — size unit used in the revenue formula
+- **pack size** — scenario pack size (same size attribute used for volume size effects); base revenue uses the base pack size
 
-Base revenue uses the same formula with base share and base price.
+Base revenue uses the same formula with base share, base price, and base pack size.
+
+**Legacy difference (intentional):** The desktop `.exe` kept the **original** pack size in the revenue / VSU denominator after a size-only edit, while volume share already reflected the new size. This platform divides by the **scenario** pack size so €-per-unit financials stay consistent with the size used for share. When pack size is unchanged, results match legacy. When only size changes (price held), revenue and VSU are lower than the `.exe` by roughly `base size ÷ scenario size` (e.g. 1 L → 2 L ≈ half).
 
 #### Value sales unit (VSU)
 
@@ -482,7 +484,7 @@ API / analytics / optimizer
 
 5. **Financial metrics (NOS/TDC)** — Placeholder in Python; not yet calculated.
 
-6. **Validation** — Numeric parity with the legacy `.exe` is planned (see `PORTING_NOTES.md` Plan 2) but not yet automated.
+6. **Validation** — Numeric parity with the legacy `.exe` is planned (see `PORTING_NOTES.md` Plan 2) but not yet automated. **Exception:** scenario pack size in revenue / VSU (see Revenue above) is an approved divergence from the desktop formula.
 
 ---
 

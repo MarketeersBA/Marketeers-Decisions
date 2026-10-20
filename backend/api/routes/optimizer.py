@@ -635,7 +635,9 @@ def _brand_summary_payload(
             "revenue": rev,
             "value_share": val_share,
             # Unit size drives the €/L view; None when the study has no size attribute.
-            "size": get_sku_size(project.doc, name),
+            "size": get_sku_size(
+                project.doc, name, model=getattr(project, "_model", None)
+            ),
             "unit_cost": resolve_unit_cost(name, costs),
             "included": included,
         })
@@ -829,7 +831,10 @@ def _run_job(job: JobRecord, req: RunOptimizerRequest) -> None:
             project, [b.sku for b in req.bounds if b.included]
         )
         included = [b for b in req.bounds if b.included and b.sku in allowed]
-        ordered_skus = sort_skus_by_size(project.doc, [b.sku for b in included])
+        live_model = getattr(project, "_model", None)
+        ordered_skus = sort_skus_by_size(
+            project.doc, [b.sku for b in included], model=live_model
+        )
         included_bounds = {b.sku: b for b in included}
         study_costs = stored_unit_costs(project.doc)
         bounds = []
@@ -858,7 +863,11 @@ def _run_job(job: JobRecord, req: RunOptimizerRequest) -> None:
         # getattr so older/lightweight request objects (e.g. in tests) that
         # predate this section still work with their implicit defaults.
         reference_sku = getattr(req, "reference_sku", None)
-        reference_size = get_sku_size(project.doc, reference_sku) if reference_sku else None
+        reference_size = (
+            get_sku_size(project.doc, reference_sku, model=live_model)
+            if reference_sku
+            else None
+        )
         anchor_size = getattr(req, "anchor_size", None)
 
         # Pack Price Architecture — enforce a size-ordered ladder over decision SKUs.
@@ -884,14 +893,14 @@ def _run_job(job: JobRecord, req: RunOptimizerRequest) -> None:
                         if link.get("low_sku"):
                             all_ppa_skus.add(link["low_sku"])
                 for sku in all_ppa_skus:
-                    size = get_sku_size(project.doc, sku)
+                    size = get_sku_size(project.doc, sku, model=live_model)
                     if size is not None:
                         ppa_sizes[sku] = size
             else:
                 # Legacy clients without ppa_size_chains — single chain over all SKUs.
                 ppa_size_chains = [ordered_skus]
                 for sku in ordered_skus:
-                    size = get_sku_size(project.doc, sku)
+                    size = get_sku_size(project.doc, sku, model=live_model)
                     if size is not None:
                         ppa_sizes[sku] = size
 

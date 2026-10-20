@@ -11,6 +11,7 @@ from typing import Callable, TypeGuard
 import numpy as np
 
 from model.project_core import ProjectCore
+from model.study_model import StudyModel
 from model.study_schema import StudyDocument
 
 logger = logging.getLogger(__name__)
@@ -30,12 +31,31 @@ def get_groups_by_type(doc: StudyDocument, group_type: str) -> dict[str, list[st
     }
 
 
-def get_sku_size(doc: StudyDocument, sku: str) -> float | None:
-    """Numeric value of the study's configured size attribute for one SKU, or None."""
+def get_sku_size(
+    doc: StudyDocument,
+    sku: str,
+    *,
+    model: StudyModel | None = None,
+) -> float | None:
+    """Numeric size for one SKU, or None.
+
+    When ``model`` is provided (live simulator / applied scenario), use the
+    scenario pack size so unit-price and PPA match revenue formulas. Otherwise
+    read the study document base attributes.
+    """
+    size_attr = doc.meta.size_attribute
+    if model is not None:
+        product = model.get_product(sku)
+        if product is None:
+            return None
+        from model.metrics import pack_size
+
+        size = float(pack_size(product, model, use_new=True))
+        return size if math.isfinite(size) and size > 0 else None
+
     product = next((p for p in doc.products if p.name == sku), None)
     if product is None:
         return None
-    size_attr = doc.meta.size_attribute
     try:
         size = float(product.base_attributes.get(size_attr))
     except (TypeError, ValueError):
@@ -43,21 +63,32 @@ def get_sku_size(doc: StudyDocument, sku: str) -> float | None:
     return size if math.isfinite(size) and size > 0 else None
 
 
-def sort_skus_by_size(doc: StudyDocument, skus: list[str]) -> list[str]:
+def sort_skus_by_size(
+    doc: StudyDocument,
+    skus: list[str],
+    *,
+    model: StudyModel | None = None,
+) -> list[str]:
     """Sort SKUs by numeric size, then name; preserve source order when no size exists."""
-    products = {p.name: p for p in doc.products}
-    size_attr = doc.meta.size_attribute
     sizes: dict[str, float] = {}
-    for sku in skus:
-        product = products.get(sku)
-        if product is None:
-            continue
-        try:
-            size = float(product.base_attributes.get(size_attr))
-        except (TypeError, ValueError):
-            continue
-        if math.isfinite(size) and size > 0:
-            sizes[sku] = size
+    if model is not None:
+        for sku in skus:
+            size = get_sku_size(doc, sku, model=model)
+            if size is not None:
+                sizes[sku] = size
+    else:
+        products = {p.name: p for p in doc.products}
+        size_attr = doc.meta.size_attribute
+        for sku in skus:
+            product = products.get(sku)
+            if product is None:
+                continue
+            try:
+                size = float(product.base_attributes.get(size_attr))
+            except (TypeError, ValueError):
+                continue
+            if math.isfinite(size) and size > 0:
+                sizes[sku] = size
 
     if not sizes:
         return list(skus)
